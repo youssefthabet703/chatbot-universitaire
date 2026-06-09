@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_mistralai import ChatMistralAI
+from database import SessionLocal
+import models
 
 load_dotenv()
 
@@ -39,12 +41,31 @@ Réponse :"""
 def detecter_intention(question: str) -> str:
     return classifieur_intentions.predict([question])[0]
 
+def chercher_emploi_du_temps():
+    db = SessionLocal()
+    seances = db.query(models.Seance).all()
+    db.close()
+    if not seances:
+        return ""
+    lignes = []
+    for s in seances:
+        lignes.append(
+            f"{s.matiere} ({s.type_seance}) avec {s.enseignant}, "
+            f"salle {s.salle}, groupe {s.groupe}, "
+            f"le {s.date_seance} de {s.heure_debut} à {s.heure_fin}."
+        )
+    return "\n".join(lignes)
 
 def repondre(question: str) -> dict:
     intention = detecter_intention(question)
 
-    resultats = vectordb.similarity_search(question, k=3)
-    contexte = "\n\n".join([doc.page_content for doc in resultats])
+    # Routage selon l'intention
+    if intention == "emploi_du_temps":
+        contexte = chercher_emploi_du_temps()
+    else:
+        resultats = vectordb.similarity_search(question, k=3)
+        contexte = "\n\n".join([doc.page_content for doc in resultats])
+
     prompt = PROMPT_SYSTEME.format(contexte=contexte, question=question)
     reponse = llm.invoke(prompt)
 

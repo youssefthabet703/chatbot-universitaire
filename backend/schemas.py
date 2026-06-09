@@ -54,3 +54,5 @@ class FaqCreer(BaseModel):
     question: str
     reponse: str
     categorie: str = "general"
+class QuestionChat(BaseModel):
+    question: str

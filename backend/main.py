@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from database import engine, get_db
 import models
 import mongo
+import rag
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import schemas
@@ -136,3 +137,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+@app.post("/chat")
+def chat(donnees: schemas.QuestionChat):
+    reponse = rag.repondre(donnees.question)
+    return {"reponse": reponse}

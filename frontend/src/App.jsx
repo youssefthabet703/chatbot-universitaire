@@ -9,6 +9,11 @@ function App() {
   const [profil, setProfil] = useState(null);
   const [seances, setSeances] = useState([]);
 
+  // État du chat
+  const [conversation, setConversation] = useState([]);
+  const [questionChat, setQuestionChat] = useState("");
+  const [chatEnCours, setChatEnCours] = useState(false);
+
   const seConnecter = async () => {
     setMessage("Connexion en cours...");
     try {
@@ -37,7 +42,6 @@ function App() {
       setProfil(profilData);
       setMessage("");
 
-      // Récupérer l'emploi du temps
       const reponseSeances = await fetch(`${API_URL}/seances`);
       const seancesData = await reponseSeances.json();
       setSeances(seancesData);
@@ -52,9 +56,30 @@ function App() {
     setEmail("");
     setMotDePasse("");
     setMessage("");
+    setConversation([]);
   };
 
-  // ÉCRAN DE CONNEXION (si pas connecté)
+  const envoyerQuestion = async () => {
+    if (!questionChat.trim()) return;
+    const maQuestion = questionChat;
+    setConversation((c) => [...c, { role: "etudiant", texte: maQuestion }]);
+    setQuestionChat("");
+    setChatEnCours(true);
+    try {
+      const reponse = await fetch(`${API_URL}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: maQuestion }),
+      });
+      const data = await reponse.json();
+      setConversation((c) => [...c, { role: "bot", texte: data.reponse }]);
+    } catch (erreur) {
+      setConversation((c) => [...c, { role: "bot", texte: "Erreur de connexion au chatbot." }]);
+    }
+    setChatEnCours(false);
+  };
+
+  // ÉCRAN DE CONNEXION
   if (!profil) {
     return (
       <div style={{ maxWidth: "400px", margin: "80px auto", fontFamily: "Arial, sans-serif" }}>
@@ -75,7 +100,7 @@ function App() {
     );
   }
 
-  // TABLEAU DE BORD (si connecté)
+  // TABLEAU DE BORD + CHAT
   return (
     <div style={{ maxWidth: "900px", margin: "40px auto", fontFamily: "Arial, sans-serif" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -116,6 +141,41 @@ function App() {
           </tbody>
         </table>
       )}
+
+      <h2 style={{ marginTop: "40px" }}>Assistant virtuel</h2>
+      <div style={{ border: "1px solid #ddd", borderRadius: "8px", padding: "16px", minHeight: "200px" }}>
+        <div style={{ marginBottom: "16px", maxHeight: "300px", overflowY: "auto" }}>
+          {conversation.length === 0 && (
+            <p style={{ color: "#888" }}>Posez une question sur vos cours, votre emploi du temps ou la vie universitaire.</p>
+          )}
+          {conversation.map((msg, i) => (
+            <div key={i} style={{ textAlign: msg.role === "etudiant" ? "right" : "left", margin: "8px 0" }}>
+              <span style={{
+                display: "inline-block", padding: "8px 12px", borderRadius: "12px", maxWidth: "70%",
+                background: msg.role === "etudiant" ? "#185FA5" : "#EAF3DE",
+                color: msg.role === "etudiant" ? "white" : "#222",
+              }}>
+                {msg.texte}
+              </span>
+            </div>
+          ))}
+          {chatEnCours && <p style={{ color: "#888", fontStyle: "italic" }}>L'assistant réfléchit...</p>}
+        </div>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <input
+            type="text"
+            placeholder="Votre question..."
+            value={questionChat}
+            onChange={(e) => setQuestionChat(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && envoyerQuestion()}
+            style={{ flex: 1, padding: "10px", fontSize: "16px" }}
+          />
+          <button onClick={envoyerQuestion} disabled={chatEnCours}
+            style={{ padding: "10px 20px", cursor: "pointer", background: "#185FA5", color: "white", border: "none" }}>
+            Envoyer
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

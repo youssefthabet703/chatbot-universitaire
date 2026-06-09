@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import engine, get_db
 import models
+import mongo
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import schemas
 from typing import Optional
@@ -99,3 +100,31 @@ def token(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
     token = auth.creer_token({"sub": str(utilisateur.id), "role": utilisateur.role})
     return {"access_token": token, "token_type": "bearer"}
+@app.post("/cours")
+def creer_cours(cours: schemas.CoursCreer):
+    resultat = mongo.collection_cours.insert_one(cours.dict())
+    return {"id": str(resultat.inserted_id), "message": "Cours ajouté"}
+
+
+@app.get("/cours")
+def lister_cours():
+    cours = []
+    for doc in mongo.collection_cours.find():
+        doc["_id"] = str(doc["_id"])
+        cours.append(doc)
+    return cours
+
+
+@app.post("/faq")
+def creer_faq(faq: schemas.FaqCreer):
+    resultat = mongo.collection_faq.insert_one(faq.dict())
+    return {"id": str(resultat.inserted_id), "message": "FAQ ajoutée"}
+
+
+@app.get("/faq")
+def lister_faq():
+    faqs = []
+    for doc in mongo.collection_faq.find():
+        doc["_id"] = str(doc["_id"])
+        faqs.append(doc)
+    return faqs

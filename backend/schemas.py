@@ -42,3 +42,15 @@ class ConnexionDemande(BaseModel):
 class TokenReponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+class CoursCreer(BaseModel):
+    titre: str
+    module: str
+    semestre: str
+    contenu: str
+    enseignant: str
+
+
+class FaqCreer(BaseModel):
+    question: str
+    reponse: str
+    categorie: str = "general"

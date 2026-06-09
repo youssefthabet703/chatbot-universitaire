@@ -139,5 +139,5 @@ app.add_middleware(
 )
 @app.post("/chat")
 def chat(donnees: schemas.QuestionChat):
-    reponse = rag.repondre(donnees.question)
-    return {"reponse": reponse}
+    resultat = rag.repondre(donnees.question)
+    return resultat

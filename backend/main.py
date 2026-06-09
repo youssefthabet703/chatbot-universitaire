@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from database import engine, get_db
 import models
 import mongo
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import schemas
 from typing import Optional
@@ -128,3 +129,10 @@ def lister_faq():
         doc["_id"] = str(doc["_id"])
         faqs.append(doc)
     return faqs
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)

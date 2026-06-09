@@ -1,12 +1,16 @@
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
 from jose import jwt, JWTError
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Outil de chiffrement des mots de passe
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Clé secrète pour signer les jetons (à garder confidentielle)
-SECRET_KEY = "change-moi-par-une-cle-secrete-longue-et-aleatoire"
+SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 DUREE_TOKEN_MINUTES = 60
 

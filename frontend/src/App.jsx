@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import "./App.css";
 import ReactMarkdown from "react-markdown";
 
@@ -15,6 +15,13 @@ function App() {
   const [conversation, setConversation] = useState([]);
   const [questionChat, setQuestionChat] = useState("");
   const [chatEnCours, setChatEnCours] = useState(false);
+  const finChatRef = useRef(null);
+
+  useEffect(() => {
+    finChatRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [conversation, chatEnCours]);
+
+  const effacerConversation = () => setConversation([]);
 
   const seConnecter = async () => {
     setMessage("Connexion en cours...");
@@ -84,6 +91,23 @@ function App() {
     setChatEnCours(false);
   };
 
+  const envoyerSuggestion = async (texte) => {
+    setConversation((c) => [...c, { role: "etudiant", texte }]);
+    setChatEnCours(true);
+    try {
+      const reponse = await fetch(`${API_URL}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: texte }),
+      });
+      const data = await reponse.json();
+      setConversation((c) => [...c, { role: "bot", texte: data.reponse, intention: data.intention }]);
+    } catch (erreur) {
+      setConversation((c) => [...c, { role: "bot", texte: "Erreur de connexion au chatbot." }]);
+    }
+    setChatEnCours(false);
+  };
+
   // ===== ÉCRAN DE CONNEXION =====
   if (!profil) {
     return (
@@ -115,6 +139,25 @@ function App() {
       </nav>
 
       <div className="contenu">
+        <div className="stats-grille">
+          <div className="stat-carte">
+            <span className="stat-valeur">{seances.length}</span>
+            <span className="stat-label">Séances</span>
+          </div>
+          <div className="stat-carte">
+            <span className="stat-valeur">{cours.length}</span>
+            <span className="stat-label">Cours</span>
+          </div>
+          <div className="stat-carte">
+            <span className="stat-valeur">{new Set(seances.map((s) => s.matiere)).size}</span>
+            <span className="stat-label">Matières</span>
+          </div>
+          <div className="stat-carte">
+            <span className="stat-valeur">{new Set(seances.map((s) => s.enseignant)).size}</span>
+            <span className="stat-label">Enseignants</span>
+          </div>
+        </div>
+
         <h2 className="section-titre">Mon emploi du temps</h2>
         {seances.length === 0 ? (
           <p>Aucune séance enregistrée.</p>
@@ -163,9 +206,28 @@ function App() {
 
         <h2 className="section-titre">Assistant virtuel</h2>
         <div className="chat-box">
+          {conversation.length > 0 && (
+            <div className="chat-header">
+              <button className="btn-effacer" onClick={effacerConversation}>Effacer la conversation</button>
+            </div>
+          )}
           <div className="chat-messages">
             {conversation.length === 0 && (
-              <p className="chat-vide">Posez une question sur vos cours, votre emploi du temps ou la vie universitaire.</p>
+              <div>
+                <p className="chat-vide">Posez une question, ou choisissez une suggestion :</p>
+                <div className="suggestions">
+                  {[
+                    "Quel est mon prochain cours ?",
+                    "Résume le cours de réseaux",
+                    "Comment m'inscrire à la bibliothèque ?",
+                    "Quelles filières si j'aime l'IA ?",
+                  ].map((q, i) => (
+                    <button key={i} className="suggestion-btn" onClick={() => envoyerSuggestion(q)}>
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
             {conversation.map((msg, i) => (
               <div key={i} className={`bulle-ligne ${msg.role}`}>
@@ -175,7 +237,14 @@ function App() {
                 </div>
               </div>
             ))}
-            {chatEnCours && <p className="chat-loading">L'assistant réfléchit...</p>}
+            {chatEnCours && (
+              <div className="bulle-ligne bot">
+                <div className="bulle bot points-animes">
+                  <span></span><span></span><span></span>
+                </div>
+              </div>
+            )}
+            <div ref={finChatRef} />
           </div>
           <div className="chat-input-zone">
             <input

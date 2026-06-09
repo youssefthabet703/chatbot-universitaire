@@ -32,6 +32,13 @@ class SeanceCreer(BaseModel):
 
 class SeanceLire(SeanceCreer):
     id: int
-
-    class Config:
+class Config:
         from_attributes = True
+class ConnexionDemande(BaseModel):
+    email: EmailStr
+    mot_de_passe: str
+
+
+class TokenReponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"

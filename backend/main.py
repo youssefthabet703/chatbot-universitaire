@@ -2,10 +2,14 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import engine, get_db
 import models
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import schemas
 from typing import Optional
 from datetime import date
+import auth
+from fastapi.security import OAuth2PasswordBearer
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Chatbot IA Universitaire")
@@ -24,7 +28,7 @@ def creer_utilisateur(utilisateur: schemas.UtilisateurCreer, db: Session = Depen
     nouvel_utilisateur = models.Utilisateur(
         nom=utilisateur.nom,
         email=utilisateur.email,
-        mot_de_passe=utilisateur.mot_de_passe,
+        mot_de_passe=auth.chiffrer_mot_de_passe(utilisateur.mot_de_passe),
         role=utilisateur.role,
     )
     db.add(nouvel_utilisateur)
@@ -60,3 +64,38 @@ def lister_seances(
     if date_seance:
         requete = requete.filter(models.Seance.date_seance == date_seance)
     return requete.all()
+@app.post("/connexion", response_model=schemas.TokenReponse)
+def connexion(donnees: schemas.ConnexionDemande, db: Session = Depends(get_db)):
+    utilisateur = db.query(models.Utilisateur).filter(
+        models.Utilisateur.email == donnees.email
+    ).first()
+
+    if not utilisateur or not auth.verifier_mot_de_passe(donnees.mot_de_passe, utilisateur.mot_de_passe):
+        raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
+
+    token = auth.creer_token({"sub": str(utilisateur.id), "role": utilisateur.role})
+    return {"access_token": token, "token_type": "bearer"}
+def utilisateur_courant(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    donnees = auth.lire_token(token)
+    if donnees is None:
+        raise HTTPException(status_code=401, detail="Jeton invalide ou expiré")
+    utilisateur = db.query(models.Utilisateur).filter(
+        models.Utilisateur.id == int(donnees.get("sub"))
+    ).first()
+    if utilisateur is None:
+        raise HTTPException(status_code=401, detail="Utilisateur introuvable")
+    return utilisateur
+
+
+@app.get("/moi", response_model=schemas.UtilisateurLire)
+def lire_mon_profil(utilisateur: models.Utilisateur = Depends(utilisateur_courant)):
+    return utilisateur
+@app.post("/token", response_model=schemas.TokenReponse)
+def token(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    utilisateur = db.query(models.Utilisateur).filter(
+        models.Utilisateur.email == form.username
+    ).first()
+    if not utilisateur or not auth.verifier_mot_de_passe(form.password, utilisateur.mot_de_passe):
+        raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
+    token = auth.creer_token({"sub": str(utilisateur.id), "role": utilisateur.role})
+    return {"access_token": token, "token_type": "bearer"}

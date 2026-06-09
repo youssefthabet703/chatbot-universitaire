@@ -8,6 +8,7 @@ function App() {
   const [message, setMessage] = useState("");
   const [profil, setProfil] = useState(null);
   const [seances, setSeances] = useState([]);
+  const [cours, setCours] = useState([]);
 
   // État du chat
   const [conversation, setConversation] = useState([]);
@@ -48,6 +49,9 @@ function App() {
     } catch (erreur) {
       setMessage("Erreur de connexion au serveur");
     }
+    const reponseCours = await fetch(`${API_URL}/cours`);
+      const coursData = await reponseCours.json();
+      setCours(coursData);
   };
 
   const seDeconnecter = () => {
@@ -57,6 +61,7 @@ function App() {
     setMotDePasse("");
     setMessage("");
     setConversation([]);
+    setCours([]);
   };
 
   const envoyerQuestion = async () => {
@@ -140,6 +145,27 @@ function App() {
             ))}
           </tbody>
         </table>
+      )}
+      <h2 style={{ marginTop: "40px" }}>Mes cours</h2>
+      {cours.length === 0 ? (
+        <p>Aucun cours disponible.</p>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "12px", marginTop: "10px" }}>
+          {cours.map((c) => (
+            <div key={c._id} style={{ border: "1px solid #ddd", borderRadius: "8px", padding: "12px" }}>
+              <h3 style={{ margin: "0 0 6px", color: "#185FA5" }}>{c.titre}</h3>
+              <p style={{ margin: "0 0 4px", fontSize: "14px", color: "#555" }}>
+                {c.module} — {c.semestre}
+              </p>
+              <p style={{ margin: "0 0 8px", fontSize: "13px", color: "#777" }}>
+                Enseignant : {c.enseignant}
+              </p>
+              <p style={{ margin: 0, fontSize: "14px" }}>
+                {c.contenu.length > 120 ? c.contenu.slice(0, 120) + "..." : c.contenu}
+              </p>
+            </div>
+          ))}
+        </div>
       )}
 
       <h2 style={{ marginTop: "40px" }}>Assistant virtuel</h2>

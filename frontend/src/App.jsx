@@ -1,5 +1,6 @@
 import { useState } from "react";
 import "./App.css";
+import ReactMarkdown from "react-markdown";
 
 const API_URL = "http://localhost:8001";
 
@@ -169,7 +170,7 @@ function App() {
             {conversation.map((msg, i) => (
               <div key={i} className={`bulle-ligne ${msg.role}`}>
                 <div className={`bulle ${msg.role}`}>
-                  {msg.texte}
+                  <ReactMarkdown>{msg.texte}</ReactMarkdown>
                   {msg.intention && <span className="bulle-intention">Intention : {msg.intention}</span>}
                 </div>
               </div>

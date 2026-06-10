@@ -200,10 +200,19 @@ function App() {
   }
 
   // ===== TABLEAU DE BORD =====
+  const dateAujourdhui = new Date().toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
   return (
     <div>
       <nav className="navbar">
         <div className="navbar-titre">Chatbot Universitaire</div>
+        <div className="navbar-date">
+  📅 {dateAujourdhui.charAt(0).toUpperCase() + dateAujourdhui.slice(1)}
+</div>
         <div className="navbar-user">
           <div className="avatar">{getInitiales(profil.nom)}</div>
           <span>{profil.nom} · {profil.role}</span>

@@ -296,7 +296,11 @@ function App() {
               <div key={i} className={`bulle-ligne ${msg.role}`}>
                 <div className={`bulle ${msg.role}`}>
                   <ReactMarkdown>{msg.texte}</ReactMarkdown>
-                  {msg.intention && <span className="bulle-intention">Intention : {msg.intention}</span>}
+                  {msg.intention && (
+                    <span className={`badge-intention badge-${msg.intention}`}>
+                      {msg.intention.replace(/_/g, " ")}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}

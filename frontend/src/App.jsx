@@ -432,14 +432,14 @@ function App() {
               {profil.role === "enseignant" ? " · Espace enseignant" : ""}
             </p>
           </div>
-          {(() => {
+          {profil.role === "etudiant" && (() => {
             const aujourd = new Date().toISOString().slice(0, 10);
             const prochaine = seances.find((s) => s.date_seance >= aujourd);
             return prochaine ? (
               <div className="bienvenue-prochaine">
                 <span className="prochaine-label">Prochaine séance</span>
                 <span className="prochaine-info">
-                  <strong>{prochaine.matiere}</strong> · {prochaine.date_seance} · {prochaine.heure_debut.slice(0,5)} · {prochaine.salle}
+                  <strong>{prochaine.matiere}</strong> · {new Date(prochaine.date_seance).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} · {prochaine.heure_debut.slice(0,5)} · {prochaine.salle}
                 </span>
               </div>
             ) : null;

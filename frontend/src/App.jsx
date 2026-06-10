@@ -6,6 +6,7 @@ import autoTable from "jspdf-autotable";
 import {
   GraduationCap, CalendarDays, BookOpen, Users, Bot,
   Moon, Sun, LogOut, Calendar, MessageCircle, X, Send,
+  Pencil, Trash2,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -57,6 +58,8 @@ function App() {
   const [rechercheEtu, setRechercheEtu] = useState("");
   const [editMatieres, setEditMatieres] = useState(false);
   const [matieresInput, setMatieresInput] = useState("");
+  const [seanceEnEdition, setSeanceEnEdition] = useState(null);
+  const [formEdition, setFormEdition] = useState({});
 
   useEffect(() => {
     finChatRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -252,6 +255,11 @@ function App() {
       toast.error("Veuillez remplir tous les champs obligatoires.");
       return;
     }
+    const aujourd = new Date().toISOString().slice(0, 10);
+    if (date_seance < aujourd) {
+      toast.error("Impossible d'ajouter une séance dans le passé.");
+      return;
+    }
     const id = toast.loading("Ajout en cours...");
     try {
       const reponse = await fetch(`${API_URL}/seances`, {
@@ -337,6 +345,62 @@ function App() {
       setMotDePasse("");
     } catch (erreur) {
       toast.error("Erreur de connexion au serveur");
+    }
+  };
+
+  const ouvrirEdition = (s) => {
+    setSeanceEnEdition(s.id);
+    setFormEdition({
+      matiere: s.matiere, salle: s.salle, groupe: s.groupe,
+      type_seance: s.type_seance, date_seance: s.date_seance,
+      heure_debut: s.heure_debut.slice(0, 5), heure_fin: s.heure_fin.slice(0, 5),
+      enseignant: s.enseignant,
+    });
+  };
+
+  const modifierSeance = async () => {
+    const aujourd = new Date().toISOString().slice(0, 10);
+    if (formEdition.date_seance < aujourd) {
+      toast.error("Impossible de déplacer une séance dans le passé.");
+      return;
+    }
+    const id = toast.loading("Modification en cours...");
+    try {
+      const rep = await fetch(`${API_URL}/seances/${seanceEnEdition}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(formEdition),
+      });
+      if (!rep.ok) {
+        const err = await rep.json();
+        toast.error(err.detail || "Erreur lors de la modification", { id });
+        return;
+      }
+      toast.success("Séance modifiée !", { id });
+      setSeanceEnEdition(null);
+      const r = await fetch(`${API_URL}/seances`);
+      setSeances(await r.json());
+    } catch {
+      toast.error("Erreur de connexion", { id });
+    }
+  };
+
+  const supprimerSeance = async (seanceId, matiere) => {
+    if (!confirm(`Supprimer la séance « ${matiere} » ?`)) return;
+    const id = toast.loading("Suppression...");
+    try {
+      const rep = await fetch(`${API_URL}/seances/${seanceId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (rep.ok) {
+        toast.success("Séance supprimée.", { id });
+        setSeances((prev) => prev.filter((s) => s.id !== seanceId));
+      } else {
+        toast.error("Erreur lors de la suppression.", { id });
+      }
+    } catch {
+      toast.error("Erreur de connexion.", { id });
     }
   };
 
@@ -716,6 +780,7 @@ function App() {
                   <div className="champ-groupe">
                     <label className="champ-label">Date *</label>
                     <input className="champ" type="date"
+                      min={new Date().toISOString().slice(0, 10)}
                       value={nouvelleSeance.date_seance}
                       onChange={(e) => setNouvelleSeance({ ...nouvelleSeance, date_seance: e.target.value })} />
                   </div>
@@ -764,29 +829,79 @@ function App() {
         {seances.length === 0 ? (
           <p className="etat-vide">Aucune séance enregistrée.</p>
         ) : vueEmploi === "liste" ? (
-          <div className="carte">
-            <table>
-              <thead>
-                <tr>
-                  <th>Matière</th><th>Type</th><th>Enseignant</th><th>Salle</th>
-                  <th>Groupe</th><th>Date</th><th>Horaire</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...seances].sort((a,b) => a.date_seance.localeCompare(b.date_seance)).map((s) => (
-                  <tr key={s.id}>
-                    <td><strong>{s.matiere}</strong></td>
-                    <td><span className={`badge-type badge-type-${s.type_seance.toLowerCase()}`}>{s.type_seance}</span></td>
-                    <td>{s.enseignant}</td>
-                    <td>{s.salle}</td>
-                    <td>{s.groupe}</td>
-                    <td>{new Date(s.date_seance).toLocaleDateString("fr-FR", { day:"numeric", month:"short" })}</td>
-                    <td>{s.heure_debut.slice(0,5)} – {s.heure_fin.slice(0,5)}</td>
+          <>
+            {seanceEnEdition && (
+              <div className="carte form-seance" style={{ marginBottom: 16 }}>
+                <p style={{ fontWeight: 600, marginBottom: 12 }}>✏️ Modifier la séance</p>
+                <div className="grille-form">
+                  {[
+                    { label: "Matière *", key: "matiere", type: "text", placeholder: "ex : Algorithmique" },
+                    { label: "Salle *", key: "salle", type: "text", placeholder: "ex : B204" },
+                    { label: "Groupe *", key: "groupe", type: "text", placeholder: "ex : L3-INFO-G1" },
+                    { label: "Date *", key: "date_seance", type: "date", min: new Date().toISOString().slice(0, 10) },
+                    { label: "Heure début *", key: "heure_debut", type: "time" },
+                    { label: "Heure fin *", key: "heure_fin", type: "time" },
+                  ].map(({ label, key, type, placeholder, min }) => (
+                    <div className="champ-groupe" key={key}>
+                      <label className="champ-label">{label}</label>
+                      <input className="champ" type={type} placeholder={placeholder} min={min}
+                        value={formEdition[key] || ""}
+                        onChange={(e) => setFormEdition({ ...formEdition, [key]: e.target.value })} />
+                    </div>
+                  ))}
+                  <div className="champ-groupe">
+                    <label className="champ-label">Type</label>
+                    <select className="champ champ-select" value={formEdition.type_seance || "CM"}
+                      onChange={(e) => setFormEdition({ ...formEdition, type_seance: e.target.value })}>
+                      <option value="CM">CM</option>
+                      <option value="TD">TD</option>
+                      <option value="TP">TP</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="form-seance-footer">
+                  <button className="btn-principal btn-valider" onClick={modifierSeance}>Enregistrer</button>
+                  <button className="btn-ajouter-seance btn-annuler" onClick={() => setSeanceEnEdition(null)}>Annuler</button>
+                </div>
+              </div>
+            )}
+            <div className="carte">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Matière</th><th>Type</th><th>Enseignant</th><th>Salle</th>
+                    <th>Groupe</th><th>Date</th><th>Horaire</th>
+                    {profil.role === "enseignant" && <th></th>}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {[...seances].sort((a,b) => a.date_seance.localeCompare(b.date_seance)).map((s) => (
+                    <tr key={s.id} className={seanceEnEdition === s.id ? "ligne-en-edition" : ""}>
+                      <td><strong>{s.matiere}</strong></td>
+                      <td><span className={`badge-type badge-type-${s.type_seance.toLowerCase()}`}>{s.type_seance}</span></td>
+                      <td>{s.enseignant}</td>
+                      <td>{s.salle}</td>
+                      <td>{s.groupe}</td>
+                      <td>{new Date(s.date_seance).toLocaleDateString("fr-FR", { day:"numeric", month:"short" })}</td>
+                      <td>{s.heure_debut.slice(0,5)} – {s.heure_fin.slice(0,5)}</td>
+                      {profil.role === "enseignant" && (
+                        <td>
+                          <div className="seance-actions">
+                            <button className="btn-action-seance btn-edit" title="Modifier" onClick={() => ouvrirEdition(s)}>
+                              <Pencil size={13} strokeWidth={2} />
+                            </button>
+                            <button className="btn-action-seance btn-del" title="Supprimer" onClick={() => supprimerSeance(s.id, s.matiere)}>
+                              <Trash2 size={13} strokeWidth={2} />
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         ) : (() => {
           const aujourd = new Date();
           const lundiBase = new Date(aujourd);
@@ -837,7 +952,19 @@ function App() {
                               <div className="seance-heure">{s.heure_debut.slice(0,5)} – {s.heure_fin.slice(0,5)}</div>
                               <div className="seance-matiere">{s.matiere}</div>
                               <div className="seance-meta">{s.salle} · {s.enseignant}</div>
-                              <span className={`badge-type badge-type-${s.type_seance.toLowerCase()}`}>{s.type_seance}</span>
+                              <div className="seance-footer-row">
+                                <span className={`badge-type badge-type-${s.type_seance.toLowerCase()}`}>{s.type_seance}</span>
+                                {profil.role === "enseignant" && (
+                                  <div className="seance-actions-mini">
+                                    <button className="btn-action-seance btn-edit" title="Modifier" onClick={() => { ouvrirEdition(s); setVueEmploi("liste"); }}>
+                                      <Pencil size={11} strokeWidth={2} />
+                                    </button>
+                                    <button className="btn-action-seance btn-del" title="Supprimer" onClick={() => supprimerSeance(s.id, s.matiere)}>
+                                      <Trash2 size={11} strokeWidth={2} />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           ))
                         }

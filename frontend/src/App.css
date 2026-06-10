@@ -1580,6 +1580,44 @@ body.mode-sombre .carte-seance-td   { background: #14532d; }
 body.mode-sombre .carte-seance-tp   { background: #431407; }
 body.mode-sombre .seance-matiere    { color: #e2e8f0; }
 
+.seance-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+
+.seance-actions, .seance-actions-mini {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-action-seance {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  opacity: 0.7;
+}
+
+.btn-action-seance:hover { opacity: 1; transform: scale(1.1); }
+
+.btn-edit  { background: var(--bleu-clair); color: var(--bleu); }
+.btn-del   { background: #fee2e2; color: #dc2626; }
+
+.btn-edit:hover  { background: var(--bleu); color: white; }
+.btn-del:hover   { background: #dc2626; color: white; }
+
+.ligne-en-edition { background: #eff6ff !important; }
+body.mode-sombre .ligne-en-edition { background: #1e3a5f !important; }
+body.mode-sombre .btn-edit { background: #1e3a5f; color: #93c5fd; }
+body.mode-sombre .btn-del  { background: #3b1111; color: #fca5a5; }
+
 .etat-vide {
   color: var(--gris-texte);
   font-style: italic;

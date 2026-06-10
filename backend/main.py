@@ -138,6 +138,37 @@ def creer_seance(
     return nouvelle_seance
 
 
+@app.put("/seances/{seance_id}", response_model=schemas.SeanceLire)
+def modifier_seance(
+    seance_id: int,
+    donnees: schemas.SeanceCreer,
+    db: Session = Depends(get_db),
+    _: models.Utilisateur = Depends(verifier_enseignant),
+):
+    seance = db.query(models.Seance).filter(models.Seance.id == seance_id).first()
+    if not seance:
+        raise HTTPException(status_code=404, detail="Séance introuvable")
+    for champ, valeur in donnees.dict().items():
+        setattr(seance, champ, valeur)
+    db.commit()
+    db.refresh(seance)
+    return seance
+
+
+@app.delete("/seances/{seance_id}")
+def supprimer_seance(
+    seance_id: int,
+    db: Session = Depends(get_db),
+    _: models.Utilisateur = Depends(verifier_enseignant),
+):
+    seance = db.query(models.Seance).filter(models.Seance.id == seance_id).first()
+    if not seance:
+        raise HTTPException(status_code=404, detail="Séance introuvable")
+    db.delete(seance)
+    db.commit()
+    return {"message": "Séance supprimée"}
+
+
 @app.get("/seances", response_model=list[schemas.SeanceLire])
 def lister_seances(
     groupe: Optional[str] = None,

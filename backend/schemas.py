@@ -16,9 +16,14 @@ class UtilisateurLire(BaseModel):
     email: str
     role: str
     groupe: str | None = None
+    matieres: str | None = None
 
     class Config:
         from_attributes = True
+
+
+class ProfilMiseAJour(BaseModel):
+    matieres: str | None = None
 
 
 class SeanceCreer(BaseModel):

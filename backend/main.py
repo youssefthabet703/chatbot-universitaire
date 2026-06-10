@@ -80,6 +80,19 @@ def lire_mon_profil(utilisateur: models.Utilisateur = Depends(utilisateur_couran
     return utilisateur
 
 
+@app.patch("/moi", response_model=schemas.UtilisateurLire)
+def mettre_a_jour_profil(
+    donnees: schemas.ProfilMiseAJour,
+    utilisateur: models.Utilisateur = Depends(utilisateur_courant),
+    db: Session = Depends(get_db),
+):
+    if donnees.matieres is not None:
+        utilisateur.matieres = donnees.matieres
+    db.commit()
+    db.refresh(utilisateur)
+    return utilisateur
+
+
 @app.post("/utilisateurs", response_model=schemas.UtilisateurLire)
 def creer_utilisateur(utilisateur: schemas.UtilisateurCreer, db: Session = Depends(get_db)):
     existe = db.query(models.Utilisateur).filter(models.Utilisateur.email == utilisateur.email).first()

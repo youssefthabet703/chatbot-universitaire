@@ -8,6 +8,7 @@ import {
   Moon, Sun, LogOut, Calendar, MessageCircle, X, Send,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const API_URL = "http://localhost:8001";
 
@@ -54,6 +55,8 @@ function App() {
   const [nouveauCours, setNouveauCours] = useState({ titre: "", module: "", semestre: "", contenu: "" });
   const [etudiants, setEtudiants] = useState([]);
   const [rechercheEtu, setRechercheEtu] = useState("");
+  const [editMatieres, setEditMatieres] = useState(false);
+  const [matieresInput, setMatieresInput] = useState("");
 
   useEffect(() => {
     finChatRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -161,6 +164,7 @@ function App() {
       });
       const profilData = await reponseProfil.json();
       setProfil(profilData);
+      setMatieresInput(profilData.matieres || "");
       setMessage("");
       setChargement(true);
 
@@ -217,7 +221,7 @@ function App() {
         body: JSON.stringify({ question: maQuestion }),
       });
       const data = await reponse.json();
-      setConversation((c) => [...c, { role: "bot", texte: data.reponse, intention: data.intention, heure: maintenant() }]);
+      setConversation((c) => [...c, { role: "bot", texte: data.reponse, intention: data.intention, confiance: data.confiance, heure: maintenant() }]);
     } catch (erreur) {
       setConversation((c) => [...c, { role: "bot", texte: "Erreur de connexion au chatbot.", heure: maintenant() }]);
     }
@@ -235,7 +239,7 @@ function App() {
         body: JSON.stringify({ question: texte }),
       });
       const data = await reponse.json();
-      setConversation((c) => [...c, { role: "bot", texte: data.reponse, intention: data.intention, heure: maintenant() }]);
+      setConversation((c) => [...c, { role: "bot", texte: data.reponse, intention: data.intention, confiance: data.confiance, heure: maintenant() }]);
     } catch (erreur) {
       setConversation((c) => [...c, { role: "bot", texte: "Erreur de connexion au chatbot.", heure: maintenant() }]);
     }
@@ -333,6 +337,23 @@ function App() {
       setMotDePasse("");
     } catch (erreur) {
       toast.error("Erreur de connexion au serveur");
+    }
+  };
+
+  const sauvegarderMatieres = async () => {
+    const id = toast.loading("Enregistrement...");
+    try {
+      const rep = await fetch(`${API_URL}/moi`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ matieres: matieresInput }),
+      });
+      const data = await rep.json();
+      setProfil(data);
+      setEditMatieres(false);
+      toast.success("Matières mises à jour !", { id });
+    } catch {
+      toast.error("Erreur lors de la sauvegarde", { id });
     }
   };
 
@@ -613,7 +634,45 @@ function App() {
 
         {profil.role === "enseignant" && (
           <div className="panneau-enseignant">
-            <div className="panneau-enseignant-header">
+            {/* Matières enseignées */}
+          <div className="carte matieres-card">
+            <div className="matieres-header">
+              <div>
+                <span className="matieres-titre">📖 Mes matières enseignées</span>
+                {!editMatieres && profil.matieres && (
+                  <div className="matieres-badges">
+                    {profil.matieres.split(",").map((m, i) => m.trim() && (
+                      <span key={i} className="badge-matiere">{m.trim()}</span>
+                    ))}
+                  </div>
+                )}
+                {!editMatieres && !profil.matieres && (
+                  <p className="matieres-vide">Aucune matière renseignée</p>
+                )}
+              </div>
+              <button className="btn-edit-matieres" onClick={() => { setEditMatieres(!editMatieres); setMatieresInput(profil.matieres || ""); }}>
+                {editMatieres ? "Annuler" : "✏️ Modifier"}
+              </button>
+            </div>
+            {editMatieres && (
+              <div className="matieres-form">
+                <input
+                  className="champ"
+                  type="text"
+                  placeholder="ex : Base de Données, Algorithmique, Réseaux"
+                  value={matieresInput}
+                  onChange={(e) => setMatieresInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && sauvegarderMatieres()}
+                />
+                <p className="matieres-aide">Séparez les matières par des virgules</p>
+                <button className="btn-principal btn-valider" onClick={sauvegarderMatieres}>
+                  Enregistrer
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="panneau-enseignant-header">
               <h2 className="section-titre" style={{ margin: 0 }}>Gestion des séances</h2>
               <button
                 className={`btn-ajouter-seance ${showFormSeance ? "btn-annuler" : ""}`}
@@ -1011,9 +1070,22 @@ function App() {
                   <div className={`bulle ${msg.role}`}>
                     <ReactMarkdown>{msg.texte}</ReactMarkdown>
                     {msg.intention && (
-                      <span className={`badge-intention badge-${msg.intention}`}>
-                        {msg.intention.replace(/_/g, " ")}
-                      </span>
+                      <div className="intention-ligne">
+                        <span className={`badge-intention badge-${msg.intention}`}>
+                          {msg.intention.replace(/_/g, " ")}
+                        </span>
+                        {msg.confiance != null && (
+                          <span className="confiance-wrapper" title={`Confiance du classifieur : ${msg.confiance}%`}>
+                            <span className="confiance-barre">
+                              <span className="confiance-fill" style={{
+                                width: `${msg.confiance}%`,
+                                background: msg.confiance >= 80 ? "#16a34a" : msg.confiance >= 55 ? "#d97706" : "#dc2626"
+                              }} />
+                            </span>
+                            <span className="confiance-pct">{msg.confiance}%</span>
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                   <div className="msg-footer">
@@ -1062,6 +1134,33 @@ function App() {
             )}
             <div ref={finChatRef} />
           </div>
+
+          {/* Camembert des intentions */}
+          {(() => {
+            const intentionsDetectees = conversation.filter(m => m.role === "bot" && m.intention);
+            if (intentionsDetectees.length < 2) return null;
+            const comptage = intentionsDetectees.reduce((acc, m) => {
+              const label = m.intention.replace(/_/g, " ");
+              acc[label] = (acc[label] || 0) + 1;
+              return acc;
+            }, {});
+            const data = Object.entries(comptage).map(([name, value]) => ({ name, value }));
+            const COULEURS = ["#185FA5", "#16a34a", "#d97706", "#7c3aed", "#dc2626"];
+            return (
+              <div className="intentions-stats">
+                <p className="intentions-titre">📊 Répartition des intentions détectées</p>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={data} cx="50%" cy="50%" outerRadius={70} dataKey="value" label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false} fontSize={11}>
+                      {data.map((_, i) => <Cell key={i} fill={COULEURS[i % COULEURS.length]} />)}
+                    </Pie>
+                    <Tooltip formatter={(v) => [`${v} question${v > 1 ? "s" : ""}`, ""]} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            );
+          })()}
+
           <div className="chat-input-zone">
             <input
               className="chat-input"

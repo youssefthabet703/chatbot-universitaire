@@ -38,8 +38,14 @@ Question de l'étudiant : {question}
 Réponse :"""
 
 
-def detecter_intention(question: str) -> str:
-    return classifieur_intentions.predict([question])[0]
+def detecter_intention(question: str) -> tuple:
+    intention = classifieur_intentions.predict([question])[0]
+    try:
+        probas = classifieur_intentions.predict_proba([question])[0]
+        confiance = round(float(max(probas)) * 100, 1)
+    except AttributeError:
+        confiance = None
+    return intention, confiance
 
 def chercher_emploi_du_temps():
     db = SessionLocal()
@@ -57,9 +63,8 @@ def chercher_emploi_du_temps():
     return "\n".join(lignes)
 
 def repondre(question: str) -> dict:
-    intention = detecter_intention(question)
+    intention, confiance = detecter_intention(question)
 
-    # Routage selon l'intention
     if intention == "emploi_du_temps":
         contexte = chercher_emploi_du_temps()
     else:
@@ -69,4 +74,4 @@ def repondre(question: str) -> dict:
     prompt = PROMPT_SYSTEME.format(contexte=contexte, question=question)
     reponse = llm.invoke(prompt)
 
-    return {"reponse": reponse.content, "intention": intention}
+    return {"reponse": reponse.content, "intention": intention, "confiance": confiance}

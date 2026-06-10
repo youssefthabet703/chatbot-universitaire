@@ -202,20 +202,24 @@ function App() {
       </nav>
 
       <div className="contenu">
-        <div className="stats-grille">
+       <div className="stats-grille">
           <div className="stat-carte">
+            <span className="stat-icone">📅</span>
             <span className="stat-valeur">{seances.length}</span>
             <span className="stat-label">Séances</span>
           </div>
           <div className="stat-carte">
+            <span className="stat-icone">📚</span>
             <span className="stat-valeur">{cours.length}</span>
             <span className="stat-label">Cours</span>
           </div>
           <div className="stat-carte">
+            <span className="stat-icone">📖</span>
             <span className="stat-valeur">{new Set(seances.map((s) => s.matiere)).size}</span>
             <span className="stat-label">Matières</span>
           </div>
           <div className="stat-carte">
+            <span className="stat-icone">👨‍🏫</span>
             <span className="stat-valeur">{new Set(seances.map((s) => s.enseignant)).size}</span>
             <span className="stat-label">Enseignants</span>
           </div>

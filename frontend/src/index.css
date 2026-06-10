@@ -155,3 +155,12 @@ code {
   background: #EDE9FE;
   color: #5B21B6;
 }
+/* ===== ICÔNES DES CARTES STATS ===== */
+.stat-carte {
+  position: relative;
+}
+
+.stat-icone {
+  font-size: 26px;
+  margin-bottom: 4px;
+}

@@ -109,3 +109,19 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+.bascule-auth {
+  text-align: center;
+  margin-top: 16px;
+  font-size: 14px;
+  color: var(--gris-texte);
+}
+
+.bascule-auth span {
+  color: var(--bleu);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.bascule-auth span:hover {
+  text-decoration: underline;
+}

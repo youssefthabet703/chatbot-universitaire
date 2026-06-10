@@ -7,6 +7,9 @@ const API_URL = "http://localhost:8001";
 function App() {
   const [email, setEmail] = useState("");
   const [motDePasse, setMotDePasse] = useState("");
+  const [mode, setMode] = useState("connexion"); // "connexion" ou "inscription"
+  const [nomInscription, setNomInscription] = useState("");
+  const [groupeInscription, setGroupeInscription] = useState("");
   const [message, setMessage] = useState("");
   const [profil, setProfil] = useState(null);
   const [seances, setSeances] = useState([]);
@@ -110,20 +113,77 @@ function App() {
     }
     setChatEnCours(false);
   };
+  const sInscrire = async () => {
+    if (!nomInscription || !email || !motDePasse) {
+      setMessage("Veuillez remplir tous les champs obligatoires");
+      return;
+    }
+    setMessage("Création du compte...");
+    try {
+      const reponse = await fetch(`${API_URL}/utilisateurs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nom: nomInscription,
+          email: email,
+          mot_de_passe: motDePasse,
+          role: "etudiant",
+          groupe: groupeInscription || null,
+        }),
+      });
+      if (!reponse.ok) {
+        const err = await reponse.json();
+        setMessage(err.detail || "Erreur lors de l'inscription");
+        return;
+      }
+      setMessage("Compte créé ! Vous pouvez vous connecter.");
+      setMode("connexion");
+      setNomInscription("");
+      setGroupeInscription("");
+      setMotDePasse("");
+    } catch (erreur) {
+      setMessage("Erreur de connexion au serveur");
+    }
+  };
 
-  // ===== ÉCRAN DE CONNEXION =====
+  // ===== ÉCRAN DE CONNEXION / INSCRIPTION =====
   if (!profil) {
     return (
       <div className="login-page">
         <div className="login-card">
           <h1>Chatbot Universitaire</h1>
-          <p className="sous-titre">Connectez-vous à votre espace étudiant</p>
-          <input className="champ" type="email" placeholder="Email"
-            value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input className="champ" type="password" placeholder="Mot de passe"
-            value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && seConnecter()} />
-          <button className="btn-principal" onClick={seConnecter}>Se connecter</button>
+          {mode === "connexion" ? (
+            <>
+              <p className="sous-titre">Connectez-vous à votre espace étudiant</p>
+              <input className="champ" type="email" placeholder="Email"
+                value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input className="champ" type="password" placeholder="Mot de passe"
+                value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && seConnecter()} />
+              <button className="btn-principal" onClick={seConnecter}>Se connecter</button>
+              <p className="bascule-auth">
+                Pas encore de compte ?{" "}
+                <span onClick={() => { setMode("inscription"); setMessage(""); }}>S'inscrire</span>
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="sous-titre">Créez votre compte étudiant</p>
+              <input className="champ" type="text" placeholder="Nom complet"
+                value={nomInscription} onChange={(e) => setNomInscription(e.target.value)} />
+              <input className="champ" type="email" placeholder="Email"
+                value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input className="champ" type="password" placeholder="Mot de passe"
+                value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} />
+              <input className="champ" type="text" placeholder="Groupe (ex : L3-INFO-G1)"
+                value={groupeInscription} onChange={(e) => setGroupeInscription(e.target.value)} />
+              <button className="btn-principal" onClick={sInscrire}>Créer mon compte</button>
+              <p className="bascule-auth">
+                Déjà un compte ?{" "}
+                <span onClick={() => { setMode("connexion"); setMessage(""); }}>Se connecter</span>
+              </p>
+            </>
+          )}
           {message && <p className="message-erreur">{message}</p>}
         </div>
       </div>

@@ -33,7 +33,9 @@ def creer_utilisateur(utilisateur: schemas.UtilisateurCreer, db: Session = Depen
         email=utilisateur.email,
         mot_de_passe=auth.chiffrer_mot_de_passe(utilisateur.mot_de_passe),
         role=utilisateur.role,
+        groupe=utilisateur.groupe,
     )
+    
     db.add(nouvel_utilisateur)
     db.commit()
     db.refresh(nouvel_utilisateur)

@@ -1,6 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import "./App.css";
 import ReactMarkdown from "react-markdown";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import {
+  GraduationCap, CalendarDays, BookOpen, Users, Bot,
+  Moon, Sun, LogOut, Calendar, MessageCircle, X, Send,
+} from "lucide-react";
+import toast, { Toaster } from "react-hot-toast";
 
 const API_URL = "http://localhost:8001";
 
@@ -14,12 +21,16 @@ function App() {
   const [connexionEnCours, setConnexionEnCours] = useState(false);
   const [copieIndex, setCopieIndex] = useState(null);
   const [sectionActive, setSectionActive] = useState("emploi");
+  const [modeSombre, setModeSombre] = useState(() => localStorage.getItem("theme") === "sombre");
   const [heureActuelle, setHeureActuelle] = useState(
     new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
   );
   const [profil, setProfil] = useState(null);
   const [seances, setSeances] = useState([]);
   const [cours, setCours] = useState([]);
+  const [chargement, setChargement] = useState(false);
+  const [semaineOffset, setSemaineOffset] = useState(0);
+  const [vueEmploi, setVueEmploi] = useState("semaine");
 
   const [conversation, setConversation] = useState([]);
   const [questionChat, setQuestionChat] = useState("");
@@ -27,16 +38,20 @@ function App() {
   const finChatRef = useRef(null);
 
   const [token, setToken] = useState(null);
+  const [chatOuvert, setChatOuvert] = useState(false);
+  const [convFlottante, setConvFlottante] = useState([]);
+  const [questionFlottante, setQuestionFlottante] = useState("");
+  const [flottantEnCours, setFlottantEnCours] = useState(false);
+  const [nonLus, setNonLus] = useState(0);
+  const finFlottantRef = useRef(null);
   const [showFormSeance, setShowFormSeance] = useState(false);
   const [nouvelleSeance, setNouvelleSeance] = useState({
     matiere: "", salle: "", groupe: "", type_seance: "CM",
     date_seance: "", heure_debut: "", heure_fin: "",
   });
-  const [messageSeance, setMessageSeance] = useState("");
   const [rechercheCours, setRechercheCours] = useState("");
   const [showFormCours, setShowFormCours] = useState(false);
   const [nouveauCours, setNouveauCours] = useState({ titre: "", module: "", semestre: "", contenu: "" });
-  const [messageCours, setMessageCours] = useState("");
   const [etudiants, setEtudiants] = useState([]);
   const [rechercheEtu, setRechercheEtu] = useState("");
 
@@ -45,11 +60,49 @@ function App() {
   }, [conversation, chatEnCours]);
 
   useEffect(() => {
+    finFlottantRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [convFlottante, flottantEnCours]);
+
+  useEffect(() => {
+    if (chatOuvert) setNonLus(0);
+  }, [chatOuvert]);
+
+  // Charger l'historique depuis localStorage quand le profil est disponible
+  useEffect(() => {
+    if (!profil) return;
+    const sauvegarde = localStorage.getItem(`chatbot_conv_${profil.id}`);
+    if (sauvegarde) {
+      try { setConversation(JSON.parse(sauvegarde)); } catch {}
+    }
+  }, [profil?.id]);
+
+  // Sauvegarder la conversation à chaque changement
+  useEffect(() => {
+    if (!profil) return;
+    localStorage.setItem(`chatbot_conv_${profil.id}`, JSON.stringify(conversation));
+  }, [conversation, profil?.id]);
+
+  useEffect(() => {
     const interval = setInterval(() => {
       setHeureActuelle(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
     }, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (modeSombre) {
+      document.body.classList.add("mode-sombre");
+      localStorage.setItem("theme", "sombre");
+    } else {
+      document.body.classList.remove("mode-sombre");
+      localStorage.setItem("theme", "clair");
+    }
+  }, [modeSombre]);
+
+  useEffect(() => {
+    document.body.style.overflow = profil ? "" : "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, [profil]);
 
   useEffect(() => {
     if (!profil) return;
@@ -67,7 +120,10 @@ function App() {
     return () => observer.disconnect();
   }, [profil]);
 
-  const effacerConversation = () => setConversation([]);
+  const effacerConversation = () => {
+    setConversation([]);
+    if (profil) localStorage.removeItem(`chatbot_conv_${profil.id}`);
+  };
 
   const getInitiales = (nom) => {
     if (!nom) return "?";
@@ -91,7 +147,7 @@ function App() {
       });
 
       if (!reponse.ok) {
-        setMessage("Email ou mot de passe incorrect");
+        toast.error("Email ou mot de passe incorrect");
         setConnexionEnCours(false);
         return;
       }
@@ -106,6 +162,7 @@ function App() {
       const profilData = await reponseProfil.json();
       setProfil(profilData);
       setMessage("");
+      setChargement(true);
 
       if (profilData.role === "enseignant") {
         const repEtu = await fetch(`${API_URL}/etudiants`, {
@@ -124,9 +181,11 @@ function App() {
       const reponseCours = await fetch(`${API_URL}/cours`);
       setCours(await reponseCours.json());
     } catch (erreur) {
-      setMessage("Erreur de connexion au serveur");
+      toast.error("Erreur de connexion au serveur");
+    } finally {
+      setChargement(false);
+      setConnexionEnCours(false);
     }
-    setConnexionEnCours(false);
   };
 
   const seDeconnecter = () => {
@@ -139,9 +198,7 @@ function App() {
     setMessage("");
     setConversation([]);
     setShowFormSeance(false);
-    setMessageSeance("");
     setShowFormCours(false);
-    setMessageCours("");
     setEtudiants([]);
     setRechercheEtu("");
   };
@@ -188,10 +245,10 @@ function App() {
   const ajouterSeance = async () => {
     const { matiere, salle, groupe, date_seance, heure_debut, heure_fin } = nouvelleSeance;
     if (!matiere || !salle || !groupe || !date_seance || !heure_debut || !heure_fin) {
-      setMessageSeance("Veuillez remplir tous les champs obligatoires.");
+      toast.error("Veuillez remplir tous les champs obligatoires.");
       return;
     }
-    setMessageSeance("Ajout en cours...");
+    const id = toast.loading("Ajout en cours...");
     try {
       const reponse = await fetch(`${API_URL}/seances`, {
         method: "POST",
@@ -203,26 +260,26 @@ function App() {
       });
       if (!reponse.ok) {
         const err = await reponse.json();
-        setMessageSeance(err.detail || "Erreur lors de l'ajout");
+        toast.error(err.detail || "Erreur lors de l'ajout", { id });
         return;
       }
-      setMessageSeance("Séance ajoutée avec succès !");
+      toast.success("Séance ajoutée avec succès !", { id });
       setShowFormSeance(false);
       setNouvelleSeance({ matiere: "", salle: "", groupe: "", type_seance: "CM", date_seance: "", heure_debut: "", heure_fin: "" });
       const r = await fetch(`${API_URL}/seances`);
       setSeances(await r.json());
     } catch {
-      setMessageSeance("Erreur de connexion au serveur");
+      toast.error("Erreur de connexion au serveur", { id });
     }
   };
 
   const ajouterCours = async () => {
     const { titre, module, semestre, contenu } = nouveauCours;
     if (!titre || !module || !semestre || !contenu) {
-      setMessageCours("Veuillez remplir tous les champs.");
+      toast.error("Veuillez remplir tous les champs.");
       return;
     }
-    setMessageCours("Ajout en cours...");
+    const id = toast.loading("Ajout en cours...");
     try {
       const reponse = await fetch(`${API_URL}/cours`, {
         method: "POST",
@@ -234,25 +291,24 @@ function App() {
       });
       if (!reponse.ok) {
         const err = await reponse.json();
-        setMessageCours(err.detail || "Erreur lors de l'ajout");
+        toast.error(err.detail || "Erreur lors de l'ajout", { id });
         return;
       }
-      setMessageCours("Cours ajouté avec succès !");
+      toast.success("Cours ajouté avec succès !", { id });
       setShowFormCours(false);
       setNouveauCours({ titre: "", module: "", semestre: "", contenu: "" });
       const r = await fetch(`${API_URL}/cours`);
       setCours(await r.json());
     } catch {
-      setMessageCours("Erreur de connexion au serveur");
+      toast.error("Erreur de connexion au serveur", { id });
     }
   };
 
   const sInscrire = async () => {
     if (!nomInscription || !email || !motDePasse) {
-      setMessage("Veuillez remplir tous les champs obligatoires");
+      toast.error("Veuillez remplir tous les champs obligatoires");
       return;
     }
-    setMessage("Création du compte...");
     try {
       const reponse = await fetch(`${API_URL}/utilisateurs`, {
         method: "POST",
@@ -267,17 +323,72 @@ function App() {
       });
       if (!reponse.ok) {
         const err = await reponse.json();
-        setMessage(err.detail || "Erreur lors de l'inscription");
+        toast.error(err.detail || "Erreur lors de l'inscription");
         return;
       }
-      setMessage("Compte créé ! Vous pouvez vous connecter.");
+      toast.success("Compte créé ! Vous pouvez vous connecter.");
       setMode("connexion");
       setNomInscription("");
       setGroupeInscription("");
       setMotDePasse("");
     } catch (erreur) {
-      setMessage("Erreur de connexion au serveur");
+      toast.error("Erreur de connexion au serveur");
     }
+  };
+
+  const envoyerFlottant = async () => {
+    if (!questionFlottante.trim() || flottantEnCours) return;
+    const texte = questionFlottante;
+    const heure = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    setConvFlottante((c) => [...c, { role: "etudiant", texte, heure }]);
+    setQuestionFlottante("");
+    setFlottantEnCours(true);
+    try {
+      const rep = await fetch(`${API_URL}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: texte }),
+      });
+      const data = await rep.json();
+      setConvFlottante((c) => [...c, { role: "bot", texte: data.reponse, heure }]);
+      if (!chatOuvert) setNonLus((n) => n + 1);
+    } catch {
+      setConvFlottante((c) => [...c, { role: "bot", texte: "Erreur de connexion.", heure }]);
+    }
+    setFlottantEnCours(false);
+  };
+
+  const exporterPDF = () => {
+    const doc = new jsPDF();
+    const titre = `Emploi du temps — ${profil.nom}`;
+    const date = new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+
+    doc.setFontSize(16);
+    doc.setTextColor(24, 95, 165);
+    doc.text(titre, 14, 18);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Généré le ${date}`, 14, 26);
+    if (profil.groupe) doc.text(`Groupe : ${profil.groupe}`, 14, 32);
+
+    autoTable(doc, {
+      startY: profil.groupe ? 38 : 33,
+      head: [["Matière", "Enseignant", "Salle", "Groupe", "Date", "Horaire", "Type"]],
+      body: seances.map((s) => [
+        s.matiere,
+        s.enseignant,
+        s.salle,
+        s.groupe,
+        new Date(s.date_seance).toLocaleDateString("fr-FR"),
+        `${s.heure_debut.slice(0, 5)} – ${s.heure_fin.slice(0, 5)}`,
+        s.type_seance,
+      ]),
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [24, 95, 165], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [240, 247, 255] },
+    });
+
+    doc.save(`emploi_du_temps_${profil.nom.replace(/\s+/g, "_")}.pdf`);
   };
 
   // ===== ÉCRAN DE CONNEXION / INSCRIPTION =====
@@ -285,6 +396,13 @@ function App() {
     const estSucces = message.toLowerCase().includes("créé") || message.toLowerCase().includes("connecter");
     return (
       <div className="login-page">
+        <button
+          className="login-theme-btn"
+          onClick={() => setModeSombre(!modeSombre)}
+          title={modeSombre ? "Mode clair" : "Mode sombre"}
+        >
+          {modeSombre ? "☀️" : "🌙"}
+        </button>
         <div className="login-split">
           {/* Panneau gauche — branding */}
           <div className="login-branding">
@@ -382,15 +500,17 @@ function App() {
   return (
     <div>
       <nav className="navbar">
-        <div className="navbar-titre">🎓 Chatbot Universitaire</div>
+        <div className="navbar-titre">
+          <GraduationCap size={20} strokeWidth={2} /> Chatbot Universitaire
+        </div>
 
         <div className="navbar-liens">
           {[
-            { id: "emploi", label: "📅 Emploi du temps" },
-            { id: "cours",  label: "📚 Cours" },
-            ...(profil.role === "enseignant" ? [{ id: "etudiants", label: "👥 Étudiants" }] : []),
-            { id: "chat",   label: "🤖 Assistant" },
-          ].map(({ id, label }) => (
+            { id: "emploi", label: "Emploi du temps", icon: <CalendarDays size={15} strokeWidth={2} /> },
+            { id: "cours",  label: "Cours",            icon: <BookOpen size={15} strokeWidth={2} /> },
+            ...(profil.role === "enseignant" ? [{ id: "etudiants", label: "Étudiants", icon: <Users size={15} strokeWidth={2} /> }] : []),
+            { id: "chat",   label: "Assistant",        icon: <Bot size={15} strokeWidth={2} /> },
+          ].map(({ id, label, icon }) => (
             <a
               key={id}
               className={`navbar-lien ${sectionActive === id ? "actif" : ""}`}
@@ -400,24 +520,46 @@ function App() {
                 document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
               }}
             >
-              {label}
+              {icon} {label}
             </a>
           ))}
         </div>
 
         <div className="navbar-date">
-          📅 {dateAujourdhui.charAt(0).toUpperCase() + dateAujourdhui.slice(1)}
+          <Calendar size={14} strokeWidth={2} />
+          {dateAujourdhui.charAt(0).toUpperCase() + dateAujourdhui.slice(1)}
         </div>
 
         <div className="navbar-user">
+          <button className="btn-theme" onClick={() => setModeSombre(!modeSombre)} title={modeSombre ? "Mode clair" : "Mode sombre"}>
+            {modeSombre ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />}
+          </button>
           <div className="avatar">{getInitiales(profil.nom)}</div>
-          <span>{profil.nom}</span>
+          <span className="navbar-nom">{profil.nom}</span>
           <span className={`badge-role badge-role-${profil.role}`}>{profil.role}</span>
-          <button className="btn-deconnexion" onClick={seDeconnecter} title="Déconnexion">⏻</button>
+          <button className="btn-deconnexion" onClick={seDeconnecter}>
+            <LogOut size={14} strokeWidth={2} /> Déconnexion
+          </button>
         </div>
       </nav>
 
       <div className="contenu">
+
+        {/* ===== SKELETONS ===== */}
+        {chargement && (
+          <div className="skeleton-page">
+            <div className="skeleton skeleton-banner" />
+            <div className="stats-grille">
+              {[1,2,3,4].map((i) => <div key={i} className="skeleton skeleton-stat" />)}
+            </div>
+            <div className="skeleton skeleton-titre" />
+            <div className="skeleton skeleton-table" />
+            <div className="skeleton skeleton-titre" />
+            <div className="grille-cours">
+              {[1,2,3].map((i) => <div key={i} className="skeleton skeleton-carte-cours" />)}
+            </div>
+          </div>
+        )}
 
         {/* Message de bienvenue */}
         <div className="bienvenue-banner">
@@ -539,44 +681,115 @@ function App() {
                   <button className="btn-principal btn-valider" onClick={ajouterSeance}>
                     Ajouter la séance
                   </button>
-                  {messageSeance && (
-                    <p className={messageSeance.includes("succès") ? "message-succes" : "message-erreur"}>
-                      {messageSeance}
-                    </p>
-                  )}
                 </div>
               </div>
             )}
           </div>
         )}
 
-        <h2 id="emploi" className="section-titre">Mon emploi du temps</h2>
+        <div className="section-titre-ligne">
+          <h2 id="emploi" className="section-titre" style={{ margin: 0 }}>Mon emploi du temps</h2>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div className="vue-toggle">
+              <button className={vueEmploi === "semaine" ? "actif" : ""} onClick={() => setVueEmploi("semaine")}>Semaine</button>
+              <button className={vueEmploi === "liste" ? "actif" : ""} onClick={() => setVueEmploi("liste")}>Liste</button>
+            </div>
+            {seances.length > 0 && (
+              <button className="btn-export-pdf" onClick={exporterPDF} title="Télécharger en PDF">
+                <CalendarDays size={14} strokeWidth={2} /> Exporter PDF
+              </button>
+            )}
+          </div>
+        </div>
+
         {seances.length === 0 ? (
-          <p>Aucune séance enregistrée.</p>
-        ) : (
+          <p className="etat-vide">Aucune séance enregistrée.</p>
+        ) : vueEmploi === "liste" ? (
           <div className="carte">
             <table>
               <thead>
                 <tr>
-                  <th>Matière</th><th>Enseignant</th><th>Salle</th>
+                  <th>Matière</th><th>Type</th><th>Enseignant</th><th>Salle</th>
                   <th>Groupe</th><th>Date</th><th>Horaire</th>
                 </tr>
               </thead>
               <tbody>
-                {seances.map((s) => (
+                {[...seances].sort((a,b) => a.date_seance.localeCompare(b.date_seance)).map((s) => (
                   <tr key={s.id}>
-                    <td>{s.matiere}</td>
+                    <td><strong>{s.matiere}</strong></td>
+                    <td><span className={`badge-type badge-type-${s.type_seance.toLowerCase()}`}>{s.type_seance}</span></td>
                     <td>{s.enseignant}</td>
                     <td>{s.salle}</td>
                     <td>{s.groupe}</td>
-                    <td>{s.date_seance}</td>
-                    <td>{s.heure_debut} - {s.heure_fin}</td>
+                    <td>{new Date(s.date_seance).toLocaleDateString("fr-FR", { day:"numeric", month:"short" })}</td>
+                    <td>{s.heure_debut.slice(0,5)} – {s.heure_fin.slice(0,5)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        )}
+        ) : (() => {
+          const aujourd = new Date();
+          const lundiBase = new Date(aujourd);
+          lundiBase.setDate(aujourd.getDate() - ((aujourd.getDay() + 6) % 7) + semaineOffset * 7);
+
+          const jours = Array.from({ length: 5 }, (_, i) => {
+            const d = new Date(lundiBase);
+            d.setDate(lundiBase.getDate() + i);
+            return d;
+          });
+
+          const fmt = (d) => d.toISOString().slice(0, 10);
+          const fmtLabel = (d) => d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+
+          const debutSemaine = fmt(jours[0]);
+          const finSemaine = fmt(jours[4]);
+          const labelSemaine = `${jours[0].toLocaleDateString("fr-FR", { day:"numeric", month:"long" })} – ${jours[4].toLocaleDateString("fr-FR", { day:"numeric", month:"long", year:"numeric" })}`;
+
+          return (
+            <div>
+              <div className="semaine-nav">
+                <button className="btn-semaine" onClick={() => setSemaineOffset(o => o - 1)}>‹</button>
+                <span className="semaine-label">{labelSemaine}</span>
+                <button className="btn-semaine" onClick={() => setSemaineOffset(o => o + 1)}>›</button>
+                {semaineOffset !== 0 && (
+                  <button className="btn-semaine-aujourd" onClick={() => setSemaineOffset(0)}>Aujourd'hui</button>
+                )}
+              </div>
+              <div className="grille-semaine">
+                {jours.map((jour, idx) => {
+                  const dateStr = fmt(jour);
+                  const estAujourd = dateStr === fmt(aujourd);
+                  const seancesJour = seances.filter(s => s.date_seance === dateStr)
+                    .sort((a, b) => a.heure_debut.localeCompare(b.heure_debut));
+                  return (
+                    <div key={idx} className={`colonne-jour ${estAujourd ? "aujourd-hui" : ""}`}>
+                      <div className="jour-header">
+                        <span className="jour-nom">{fmtLabel(jour).split(" ")[0]}</span>
+                        <span className={`jour-num ${estAujourd ? "jour-num-actif" : ""}`}>
+                          {jour.getDate()}
+                        </span>
+                      </div>
+                      <div className="jour-seances">
+                        {seancesJour.length === 0
+                          ? <div className="jour-vide" />
+                          : seancesJour.map((s) => (
+                            <div key={s.id} className={`carte-seance carte-seance-${s.type_seance.toLowerCase()}`}>
+                              <div className="seance-heure">{s.heure_debut.slice(0,5)} – {s.heure_fin.slice(0,5)}</div>
+                              <div className="seance-matiere">{s.matiere}</div>
+                              <div className="seance-meta">{s.salle} · {s.enseignant}</div>
+                              <span className={`badge-type badge-type-${s.type_seance.toLowerCase()}`}>{s.type_seance}</span>
+                            </div>
+                          ))
+                        }
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="panneau-enseignant-header" style={{ marginTop: 32, marginBottom: 16 }}>
           <h2 id="cours" className="section-titre" style={{ margin: 0 }}>Mes cours</h2>
@@ -625,9 +838,6 @@ function App() {
             </div>
             <div className="form-seance-footer">
               <button className="btn-principal btn-valider" onClick={ajouterCours}>Ajouter le cours</button>
-              {messageCours && (
-                <p className={messageCours.includes("succès") ? "message-succes" : "message-erreur"}>{messageCours}</p>
-              )}
             </div>
           </div>
         )}
@@ -666,11 +876,17 @@ function App() {
                     <button className="btn-supprimer-cours" title="Supprimer ce cours"
                       onClick={async () => {
                         if (!confirm(`Supprimer « ${c.titre} » ?`)) return;
-                        await fetch(`${API_URL}/cours/${c._id}`, {
+                        const id = toast.loading("Suppression...");
+                        const rep = await fetch(`${API_URL}/cours/${c._id}`, {
                           method: "DELETE",
                           headers: { Authorization: `Bearer ${token}` },
                         });
-                        setCours((prev) => prev.filter((x) => x._id !== c._id));
+                        if (rep.ok) {
+                          toast.success("Cours supprimé.", { id });
+                          setCours((prev) => prev.filter((x) => x._id !== c._id));
+                        } else {
+                          toast.error("Erreur lors de la suppression.", { id });
+                        }
                       }}>✕</button>
                   )}
                   <h3>{c.titre}</h3>
@@ -862,6 +1078,80 @@ function App() {
           </div>
         </div>
       </div>
+
+      {/* ===== WIDGET CHAT FLOTTANT ===== */}
+      <div className={`chat-flottant-panel ${chatOuvert ? "ouvert" : ""}`}>
+        <div className="chat-flottant-header">
+          <div className="chat-flottant-titre">
+            <Bot size={18} strokeWidth={2} />
+            <span>Assistant virtuel</span>
+          </div>
+          <button className="chat-flottant-fermer" onClick={() => setChatOuvert(false)}>
+            <X size={18} strokeWidth={2} />
+          </button>
+        </div>
+
+        <div className="chat-flottant-messages">
+          {convFlottante.length === 0 && (
+            <div className="chat-flottant-vide">
+              <Bot size={32} strokeWidth={1.5} />
+              <p>Bonjour {profil.nom.split(" ")[0]} ! Comment puis-je vous aider ?</p>
+            </div>
+          )}
+          {convFlottante.map((msg, i) => (
+            <div key={i} className={`bulle-flottante ${msg.role}`}>
+              {msg.role === "bot" && <div className="avatar-flottant">🤖</div>}
+              <div className="bulle-flottante-contenu">
+                <div className={`bulle ${msg.role}`}>
+                  <ReactMarkdown>{msg.texte}</ReactMarkdown>
+                </div>
+                <span className="msg-heure">{msg.heure}</span>
+              </div>
+            </div>
+          ))}
+          {flottantEnCours && (
+            <div className="bulle-flottante bot">
+              <div className="avatar-flottant">🤖</div>
+              <div className="bulle bot points-animes">
+                <span></span><span></span><span></span>
+              </div>
+            </div>
+          )}
+          <div ref={finFlottantRef} />
+        </div>
+
+        <div className="chat-flottant-input">
+          <input
+            type="text"
+            placeholder="Votre question..."
+            value={questionFlottante}
+            onChange={(e) => setQuestionFlottante(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && envoyerFlottant()}
+          />
+          <button onClick={envoyerFlottant} disabled={flottantEnCours}>
+            <Send size={16} strokeWidth={2} />
+          </button>
+        </div>
+      </div>
+
+      <button
+        className="chat-flottant-btn"
+        onClick={() => setChatOuvert(!chatOuvert)}
+        title="Assistant virtuel"
+      >
+        {chatOuvert ? <X size={24} strokeWidth={2} /> : <MessageCircle size={24} strokeWidth={2} />}
+        {!chatOuvert && nonLus > 0 && <span className="chat-flottant-badge">{nonLus}</span>}
+      </button>
+
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          style: { borderRadius: "10px", fontSize: "14px", fontFamily: "inherit" },
+          success: { iconTheme: { primary: "#16a34a", secondary: "#fff" } },
+          error:   { iconTheme: { primary: "#dc2626", secondary: "#fff" } },
+          duration: 3500,
+        }}
+      />
     </div>
   );
 }

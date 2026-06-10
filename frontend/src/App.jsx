@@ -50,11 +50,14 @@ function App() {
       const profilData = await reponseProfil.json();
       setProfil(profilData);
       setMessage("");
+      const groupe = profilData.groupe;
+      const urlSeances = groupe
+        ? `${API_URL}/seances?groupe=${encodeURIComponent(groupe)}`
+        : `${API_URL}/seances`;
+      const reponseSeances = await fetch(urlSeances);
+      setSeances(await reponseSeances.json());;
 
-      const reponseSeances = await fetch(`${API_URL}/seances`);
-      setSeances(await reponseSeances.json());
-
-      const reponseCours = await fetch(`${API_URL}/cours`);
+     const reponseCours = await fetch(`${API_URL}/cours`);
       setCours(await reponseCours.json());
     } catch (erreur) {
       setMessage("Erreur de connexion au serveur");

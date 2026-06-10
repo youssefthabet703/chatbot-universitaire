@@ -7,6 +7,7 @@ class UtilisateurCreer(BaseModel):
     email: EmailStr
     mot_de_passe: str
     role: str = "etudiant"
+    groupe: str | None = None
 
 
 class UtilisateurLire(BaseModel):
@@ -14,6 +15,7 @@ class UtilisateurLire(BaseModel):
     nom: str
     email: str
     role: str
+    groupe: str | None = None
 
     class Config:
         from_attributes = True

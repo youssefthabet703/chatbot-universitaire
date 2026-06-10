@@ -10,7 +10,7 @@ class Utilisateur(Base):
     email = Column(String, unique=True, nullable=False)
     mot_de_passe = Column(String, nullable=False)
     role = Column(String, default="etudiant")  # etudiant, enseignant ou admin
-
+    groupe = Column(String, nullable=True)  
 
 class Seance(Base):
     __tablename__ = "seances"

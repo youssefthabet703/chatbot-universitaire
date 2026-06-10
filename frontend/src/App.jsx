@@ -7,7 +7,7 @@ const API_URL = "http://localhost:8001";
 function App() {
   const [email, setEmail] = useState("");
   const [motDePasse, setMotDePasse] = useState("");
-  const [mode, setMode] = useState("connexion"); // "connexion" ou "inscription"
+  const [mode, setMode] = useState("connexion");
   const [nomInscription, setNomInscription] = useState("");
   const [groupeInscription, setGroupeInscription] = useState("");
   const [message, setMessage] = useState("");
@@ -25,6 +25,13 @@ function App() {
   }, [conversation, chatEnCours]);
 
   const effacerConversation = () => setConversation([]);
+
+  const getInitiales = (nom) => {
+    if (!nom) return "?";
+    const mots = nom.trim().split(" ");
+    if (mots.length === 1) return mots[0][0].toUpperCase();
+    return (mots[0][0] + mots[mots.length - 1][0]).toUpperCase();
+  };
 
   const seConnecter = async () => {
     setMessage("Connexion en cours...");
@@ -53,14 +60,15 @@ function App() {
       const profilData = await reponseProfil.json();
       setProfil(profilData);
       setMessage("");
+
       const groupe = profilData.groupe;
       const urlSeances = groupe
         ? `${API_URL}/seances?groupe=${encodeURIComponent(groupe)}`
         : `${API_URL}/seances`;
       const reponseSeances = await fetch(urlSeances);
-      setSeances(await reponseSeances.json());;
+      setSeances(await reponseSeances.json());
 
-     const reponseCours = await fetch(`${API_URL}/cours`);
+      const reponseCours = await fetch(`${API_URL}/cours`);
       setCours(await reponseCours.json());
     } catch (erreur) {
       setMessage("Erreur de connexion au serveur");
@@ -113,6 +121,7 @@ function App() {
     }
     setChatEnCours(false);
   };
+
   const sInscrire = async () => {
     if (!nomInscription || !email || !motDePasse) {
       setMessage("Veuillez remplir tous les champs obligatoires");
@@ -196,13 +205,14 @@ function App() {
       <nav className="navbar">
         <div className="navbar-titre">Chatbot Universitaire</div>
         <div className="navbar-user">
+          <div className="avatar">{getInitiales(profil.nom)}</div>
           <span>{profil.nom} · {profil.role}</span>
           <button className="btn-deconnexion" onClick={seDeconnecter}>Déconnexion</button>
         </div>
       </nav>
 
       <div className="contenu">
-       <div className="stats-grille">
+        <div className="stats-grille">
           <div className="stat-carte">
             <span className="stat-icone">📅</span>
             <span className="stat-valeur">{seances.length}</span>

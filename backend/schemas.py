@@ -41,6 +41,7 @@ class ConnexionDemande(BaseModel):
     mot_de_passe: str
 
 
+
 class TokenReponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

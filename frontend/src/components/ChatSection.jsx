@@ -31,11 +31,13 @@ export default function ChatSection({ profil, token, getInitiales }) {
 
   const envoyerQuestion = async (texte = questionChat) => {
     if (!texte.trim() || chatEnCours) return;
+    // conversation ici = valeur AVANT le setConversation ci-dessous (closure React)
+    const historique = conversation.map((m) => ({ role: m.role, texte: m.texte }));
     setConversation((c) => [...c, { role: "etudiant", texte, heure: maintenant() }]);
     setQuestionChat("");
     setChatEnCours(true);
     try {
-      const data = await api.envoyerChat(token, texte);
+      const data = await api.envoyerChat(token, texte, historique);
       setConversation((c) => [...c, {
         role: "bot", texte: data.reponse,
         intention: data.intention, confiance: data.confiance,

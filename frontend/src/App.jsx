@@ -196,23 +196,24 @@ function App() {
           })()}
         </div>
 
+        {/* Stats — Tailwind : rounded-2xl shadow-sm sur chaque carte */}
         <div className="stats-grille">
-          <div className="stat-carte stat-bleu">
+          <div className="stat-carte stat-bleu rounded-2xl shadow-sm">
             <span className="stat-icone">📅</span>
             <span className="stat-valeur">{seances.length}</span>
             <span className="stat-label">Séances</span>
           </div>
-          <div className="stat-carte stat-vert">
+          <div className="stat-carte stat-vert rounded-2xl shadow-sm">
             <span className="stat-icone">📚</span>
             <span className="stat-valeur">{cours.length}</span>
             <span className="stat-label">Cours</span>
           </div>
-          <div className="stat-carte stat-violet">
+          <div className="stat-carte stat-violet rounded-2xl shadow-sm">
             <span className="stat-icone">📖</span>
             <span className="stat-valeur">{new Set(seances.map((s) => s.matiere)).size}</span>
             <span className="stat-label">Matières</span>
           </div>
-          <div className="stat-carte stat-orange">
+          <div className="stat-carte stat-orange rounded-2xl shadow-sm">
             <span className="stat-icone">👨‍🏫</span>
             <span className="stat-valeur">{new Set(seances.map((s) => s.enseignant)).size}</span>
             <span className="stat-label">Enseignants</span>

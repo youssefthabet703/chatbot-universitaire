@@ -86,7 +86,9 @@ export default function ChatFlottant({ profil, token }) {
         </div>
       </div>
 
-      <button className="chat-flottant-btn" onClick={() => setChatOuvert(!chatOuvert)} title="Assistant virtuel">
+      {/* Bouton flottant — Tailwind : shadow-2xl + transition */}
+      <button className="chat-flottant-btn shadow-2xl transition-transform duration-200 hover:scale-110"
+        onClick={() => setChatOuvert(!chatOuvert)} title="Assistant virtuel">
         {chatOuvert ? <X size={24} strokeWidth={2} /> : <MessageCircle size={24} strokeWidth={2} />}
         {!chatOuvert && nonLus > 0 && <span className="chat-flottant-badge">{nonLus}</span>}
       </button>

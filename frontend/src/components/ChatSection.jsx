@@ -74,14 +74,19 @@ export default function ChatSection({ profil, token, getInitiales }) {
           {conversation.length === 0 && (
             <div>
               <p className="chat-vide">Posez une question, ou choisissez une suggestion :</p>
-              <div className="suggestions">
+              {/* Suggestions — Tailwind : transition + hover:scale */}
+            <div className="suggestions">
                 {[
                   "Quel est mon prochain cours ?",
                   "Résume le cours de réseaux",
                   "Comment m'inscrire à la bibliothèque ?",
                   "Quelles filières si j'aime l'IA ?",
                 ].map((q, i) => (
-                  <button key={i} className="suggestion-btn" onClick={() => envoyerQuestion(q)}>{q}</button>
+                  <button key={i}
+                    className="suggestion-btn transition-transform duration-150 hover:scale-105 hover:shadow-md"
+                    onClick={() => envoyerQuestion(q)}>
+                    {q}
+                  </button>
                 ))}
               </div>
             </div>

@@ -231,5 +231,9 @@ def chat(
     donnees: schemas.QuestionChat,
     utilisateur: models.Utilisateur = Depends(utilisateur_courant),
 ):
-    resultat = rag.repondre(donnees.question, utilisateur=utilisateur)
+    resultat = rag.repondre(
+        donnees.question,
+        utilisateur=utilisateur,
+        historique=donnees.historique,
+    )
     return resultat

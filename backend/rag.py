@@ -10,17 +10,13 @@ import mongo
 
 load_dotenv()
 
-# Chemin vers la base vectorielle (dans le dossier chatbot)
 CHROMA_DIR = os.path.join(os.path.dirname(__file__), "..", "chatbot", "chroma_db")
-
-# Chemin vers le classifieur d'intentions
 MODELE_INTENTIONS = os.path.join(os.path.dirname(__file__), "..", "chatbot", "modele_intentions.pkl")
 
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 vectordb = Chroma(persist_directory=CHROMA_DIR, embedding_function=embeddings)
 llm = ChatMistralAI(model="mistral-small-latest", temperature=0.2)
 
-# Charger le classifieur d'intentions
 with open(MODELE_INTENTIONS, "rb") as f:
     classifieur_intentions = pickle.load(f)
 
@@ -29,7 +25,11 @@ PROMPT_SYSTEME = """Tu es l'assistant virtuel d'une université. Tu réponds aux
 Règles importantes :
 - Réponds UNIQUEMENT à partir des informations fournies dans le contexte ci-dessous.
 - Si l'information n'est pas dans le contexte, dis clairement : "Je ne dispose pas de cette information." Ne l'invente jamais.
+- Tiens compte de l'historique de la conversation pour comprendre les questions de suivi (par exemple "et ses prérequis ?" se rapporte au sujet évoqué juste avant).
 - Réponds de manière claire, polie et concise, en français.
+
+Historique de la conversation :
+{historique}
 
 Contexte :
 {contexte}
@@ -88,37 +88,55 @@ def chercher_faq_mongo(intention: str, question: str) -> str:
     return "\n\n".join(f"Q: {d['question']}\nR: {d['reponse']}" for d in docs)
 
 
-def repondre(question: str, utilisateur=None) -> dict:
+def construire_historique(historique) -> str:
+    """Met en forme les derniers échanges pour le prompt (max 6 messages = 3 tours)."""
+    if not historique:
+        return "(Début de la conversation)"
+    lignes = []
+    for msg in historique[-6:]:
+        role = "Étudiant" if msg.role == "etudiant" else "Assistant"
+        lignes.append(f"{role} : {msg.texte}")
+    return "\n".join(lignes)
+
+
+def repondre(question: str, utilisateur=None, historique=None) -> dict:
     intention, confiance = detecter_intention(question)
+
+    # Enrichir la recherche avec le dernier message étudiant (questions de suivi "et ses prérequis ?")
+    question_recherche = question
+    if historique:
+        for msg in reversed(historique):
+            if msg.role == "etudiant":
+                question_recherche = f"{msg.texte} {question}"
+                break
 
     if intention == "emploi_du_temps":
         groupe = utilisateur.groupe if utilisateur else None
         contexte = chercher_emploi_du_temps(groupe=groupe)
 
     elif intention == "orientation":
-        # Recherche filtrée sur la base de connaissances des filières
         resultats = vectordb.similarity_search(
-            question, k=4,
+            question_recherche, k=4,
             filter={"source": "orientation"}
         )
         contexte = "\n\n".join([doc.page_content for doc in resultats])
-        # Fallback MongoDB si ChromaDB n'a pas encore été réindexé
         if not contexte:
             faq_contexte = chercher_faq_mongo(intention, question)
             contexte = faq_contexte or ""
 
     else:
-        # Recherche vectorielle générale (cours, FAQ)
-        resultats = vectordb.similarity_search(question, k=3)
+        resultats = vectordb.similarity_search(question_recherche, k=3)
         contexte = "\n\n".join([doc.page_content for doc in resultats])
-
-        # Complément FAQ MongoDB si résultats trop courts
         if len(contexte) < 200:
             faq_contexte = chercher_faq_mongo(intention, question)
             if faq_contexte:
                 contexte = faq_contexte if not contexte else contexte + "\n\n" + faq_contexte
 
-    prompt = PROMPT_SYSTEME.format(contexte=contexte, question=question)
+    prompt = PROMPT_SYSTEME.format(
+        historique=construire_historique(historique),
+        contexte=contexte,
+        question=question,
+    )
     try:
         reponse = llm.invoke(prompt)
         texte_reponse = reponse.content

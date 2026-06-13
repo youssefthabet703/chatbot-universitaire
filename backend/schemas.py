@@ -60,5 +60,11 @@ class FaqCreer(BaseModel):
     question: str
     reponse: str
     categorie: str = "general"
+    
+class MessageHistorique(BaseModel):
+    role: str          # "etudiant" ou "bot"
+    texte: str
+
 class QuestionChat(BaseModel):
     question: str
+    historique: list[MessageHistorique] = []

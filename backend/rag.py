@@ -47,9 +47,12 @@ def detecter_intention(question: str) -> tuple:
         confiance = None
     return intention, confiance
 
-def chercher_emploi_du_temps():
+def chercher_emploi_du_temps(groupe: str = None):
     db = SessionLocal()
-    seances = db.query(models.Seance).all()
+    requete = db.query(models.Seance)
+    if groupe:
+        requete = requete.filter(models.Seance.groupe == groupe)
+    seances = requete.all()
     db.close()
     if not seances:
         return ""
@@ -62,11 +65,12 @@ def chercher_emploi_du_temps():
         )
     return "\n".join(lignes)
 
-def repondre(question: str) -> dict:
+def repondre(question: str, utilisateur=None) -> dict:
     intention, confiance = detecter_intention(question)
 
     if intention == "emploi_du_temps":
-        contexte = chercher_emploi_du_temps()
+        groupe = utilisateur.groupe if utilisateur else None
+        contexte = chercher_emploi_du_temps(groupe=groupe)
     else:
         resultats = vectordb.similarity_search(question, k=3)
         contexte = "\n\n".join([doc.page_content for doc in resultats])

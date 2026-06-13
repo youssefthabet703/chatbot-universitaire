@@ -231,6 +231,9 @@ def lister_faq():
 
 
 @app.post("/chat")
-def chat(donnees: schemas.QuestionChat):
-    resultat = rag.repondre(donnees.question)
+def chat(
+    donnees: schemas.QuestionChat,
+    utilisateur: models.Utilisateur = Depends(utilisateur_courant),
+):
+    resultat = rag.repondre(donnees.question, utilisateur=utilisateur)
     return resultat

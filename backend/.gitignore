@@ -2,3 +2,8 @@ venv/
 __pycache__/
 .env
 *.pyc
+
+# Données générées — à reconstruire via indexation.py
+../chatbot/chroma_db/
+../chatbot/modele_intentions.pkl
+../chatbot/__pycache__/

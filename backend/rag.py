@@ -106,6 +106,10 @@ def repondre(question: str, utilisateur=None) -> dict:
                 contexte = faq_contexte if not contexte else contexte + "\n\n" + faq_contexte
 
     prompt = PROMPT_SYSTEME.format(contexte=contexte, question=question)
-    reponse = llm.invoke(prompt)
+    try:
+        reponse = llm.invoke(prompt)
+        texte_reponse = reponse.content
+    except Exception:
+        texte_reponse = "Le service est momentanément indisponible. Veuillez réessayer dans quelques instants."
 
-    return {"reponse": reponse.content, "intention": intention, "confiance": confiance}
+    return {"reponse": texte_reponse, "intention": intention, "confiance": confiance}

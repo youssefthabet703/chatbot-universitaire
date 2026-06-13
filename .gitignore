@@ -1,0 +1,18 @@
+# ── Fichiers générés (à reconstruire via indexation.py / entrainer_intentions.py)
+chatbot/chroma_db/
+chatbot/modele_intentions.pkl
+chatbot/__pycache__/
+
+# ── Backend Python
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+backend/.env
+
+# ── Frontend Node
+frontend/node_modules/
+frontend/dist/
+
+# ── Environnements et secrets
+.env
+*.env

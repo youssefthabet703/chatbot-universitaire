@@ -94,12 +94,25 @@ def repondre(question: str, utilisateur=None) -> dict:
     if intention == "emploi_du_temps":
         groupe = utilisateur.groupe if utilisateur else None
         contexte = chercher_emploi_du_temps(groupe=groupe)
+
+    elif intention == "orientation":
+        # Recherche filtrée sur la base de connaissances des filières
+        resultats = vectordb.similarity_search(
+            question, k=4,
+            filter={"source": "orientation"}
+        )
+        contexte = "\n\n".join([doc.page_content for doc in resultats])
+        # Fallback MongoDB si ChromaDB n'a pas encore été réindexé
+        if not contexte:
+            faq_contexte = chercher_faq_mongo(intention, question)
+            contexte = faq_contexte or ""
+
     else:
-        # Recherche vectorielle principale
+        # Recherche vectorielle générale (cours, FAQ)
         resultats = vectordb.similarity_search(question, k=3)
         contexte = "\n\n".join([doc.page_content for doc in resultats])
 
-        # Si les résultats vectoriels sont trop courts, compléter avec la FAQ MongoDB
+        # Complément FAQ MongoDB si résultats trop courts
         if len(contexte) < 200:
             faq_contexte = chercher_faq_mongo(intention, question)
             if faq_contexte:

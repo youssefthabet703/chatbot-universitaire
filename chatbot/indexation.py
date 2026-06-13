@@ -33,6 +33,21 @@ def construire_documents():
             metadata={"source": "faq", "categorie": faq.get("categorie", "general")}
         ))
 
+    # 3. Les filières (orientation)
+    for f in mongo.collection_orientation.find():
+        texte = (
+            f"Filière : {f['filiere']} ({f.get('niveau', '')}, {f.get('duree', '')}).\n"
+            f"Prérequis : {f.get('prerequis', '')}.\n"
+            f"Compétences acquises : {f.get('competences', '')}.\n"
+            f"Débouchés professionnels : {f.get('debouches', '')}.\n"
+            f"Poursuite d'études : {f.get('poursuite', '')}.\n"
+            f"Points forts : {f.get('points_forts', '')}."
+        )
+        documents.append(Document(
+            page_content=texte,
+            metadata={"source": "orientation", "filiere": f["filiere"]}
+        ))
+
     return documents
 
 

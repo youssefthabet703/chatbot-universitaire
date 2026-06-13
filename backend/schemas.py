@@ -44,11 +44,6 @@ class SeanceLire(SeanceCreer):
         from_attributes = True
 
 
-class ConnexionDemande(BaseModel):
-    email: EmailStr
-    mot_de_passe: str
-
-
 
 class TokenReponse(BaseModel):
     access_token: str

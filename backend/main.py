@@ -64,16 +64,6 @@ def token(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
     return {"access_token": token, "token_type": "bearer"}
 
 
-@app.post("/connexion", response_model=schemas.TokenReponse)
-def connexion(donnees: schemas.ConnexionDemande, db: Session = Depends(get_db)):
-    utilisateur = db.query(models.Utilisateur).filter(
-        models.Utilisateur.email == donnees.email
-    ).first()
-    if not utilisateur or not auth.verifier_mot_de_passe(donnees.mot_de_passe, utilisateur.mot_de_passe):
-        raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
-    token = auth.creer_token({"sub": str(utilisateur.id), "role": utilisateur.role})
-    return {"access_token": token, "token_type": "bearer"}
-
 
 @app.get("/moi", response_model=schemas.UtilisateurLire)
 def lire_mon_profil(utilisateur: models.Utilisateur = Depends(utilisateur_courant)):
@@ -112,7 +102,10 @@ def creer_utilisateur(utilisateur: schemas.UtilisateurCreer, db: Session = Depen
 
 
 @app.get("/utilisateurs", response_model=list[schemas.UtilisateurLire])
-def lister_utilisateurs(db: Session = Depends(get_db)):
+def lister_utilisateurs(
+    _: models.Utilisateur = Depends(verifier_enseignant),
+    db: Session = Depends(get_db),
+):
     return db.query(models.Utilisateur).all()
 
 
@@ -216,7 +209,10 @@ def lister_cours():
 
 
 @app.post("/faq")
-def creer_faq(faq: schemas.FaqCreer):
+def creer_faq(
+    faq: schemas.FaqCreer,
+    _: models.Utilisateur = Depends(verifier_enseignant),
+):
     resultat = mongo.collection_faq.insert_one(faq.dict())
     return {"id": str(resultat.inserted_id), "message": "FAQ ajoutée"}
 

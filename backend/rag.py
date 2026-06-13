@@ -6,6 +6,7 @@ from langchain_chroma import Chroma
 from langchain_mistralai import ChatMistralAI
 from database import SessionLocal
 import models
+import mongo
 
 load_dotenv()
 
@@ -65,6 +66,28 @@ def chercher_emploi_du_temps(groupe: str = None):
         )
     return "\n".join(lignes)
 
+MOTS_CLES_INTENTION = {
+    "orientation": ["orientation", "filière", "spécialité", "master", "licence", "formation", "parcours"],
+    "faq_administrative": ["inscription", "bourse", "carte", "bibliothèque", "scolarité", "attestation"],
+    "cours": ["cours", "module", "programme", "syllabus", "contenu"],
+}
+
+def chercher_faq_mongo(intention: str, question: str) -> str:
+    mots = MOTS_CLES_INTENTION.get(intention, [])
+    regex = "|".join(mots) if mots else question.split()[0]
+    docs = list(mongo.collection_faq.find(
+        {"$or": [
+            {"question": {"$regex": regex, "$options": "i"}},
+            {"reponse":  {"$regex": regex, "$options": "i"}},
+            {"categorie": intention},
+        ]},
+        {"_id": 0, "question": 1, "reponse": 1}
+    ).limit(3))
+    if not docs:
+        return ""
+    return "\n\n".join(f"Q: {d['question']}\nR: {d['reponse']}" for d in docs)
+
+
 def repondre(question: str, utilisateur=None) -> dict:
     intention, confiance = detecter_intention(question)
 
@@ -72,8 +95,15 @@ def repondre(question: str, utilisateur=None) -> dict:
         groupe = utilisateur.groupe if utilisateur else None
         contexte = chercher_emploi_du_temps(groupe=groupe)
     else:
+        # Recherche vectorielle principale
         resultats = vectordb.similarity_search(question, k=3)
         contexte = "\n\n".join([doc.page_content for doc in resultats])
+
+        # Si les résultats vectoriels sont trop courts, compléter avec la FAQ MongoDB
+        if len(contexte) < 200:
+            faq_contexte = chercher_faq_mongo(intention, question)
+            if faq_contexte:
+                contexte = faq_contexte if not contexte else contexte + "\n\n" + faq_contexte
 
     prompt = PROMPT_SYSTEME.format(contexte=contexte, question=question)
     reponse = llm.invoke(prompt)

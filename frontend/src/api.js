@@ -109,12 +109,12 @@ export const supprimerCours = async (token, id) => {
 export const fetchEtudiants = (token) =>
   fetch(`${API_URL}/etudiants`, { headers: authHeaders(token) }).then((r) => r.json());
 
-export const envoyerChat = async (token, question) => {
+export const envoyerChat = async (token, question, historique = []) => {
   const rep = await fetch(`${API_URL}/chat`, {
     method: "POST",
     headers: authHeaders(token),
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, historique }),
   });
   if (!rep.ok) throw new Error("Erreur de connexion au chatbot");
   return rep.json();
-};
+}

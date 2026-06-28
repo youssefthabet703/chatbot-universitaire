@@ -184,8 +184,11 @@ def creer_cours(
     cours: schemas.CoursCreer,
     _: models.Utilisateur = Depends(verifier_enseignant),
 ):
-    resultat = mongo.collection_cours.insert_one(cours.dict())
-    return {"id": str(resultat.inserted_id), "message": "Cours ajouté"}
+    data = cours.dict()
+    resultat = mongo.collection_cours.insert_one(data)
+    cours_id = str(resultat.inserted_id)
+    rag.ajouter_document_cours(data, cours_id)
+    return {"id": cours_id, "message": "Cours ajouté"}
 
 
 @app.delete("/cours/{cours_id}")
@@ -196,6 +199,7 @@ def supprimer_cours(
     resultat = mongo.collection_cours.delete_one({"_id": ObjectId(cours_id)})
     if resultat.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Cours introuvable")
+    rag.supprimer_document_cours(cours_id)
     return {"message": "Cours supprimé"}
 
 

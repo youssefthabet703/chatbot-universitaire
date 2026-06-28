@@ -46,6 +46,9 @@ cours = [
     {"titre": "Programmation Web", "module": "Développement Web", "semestre": "S6",
      "enseignant": "M. Karray",
      "contenu": "Développement web moderne : HTML, CSS, JavaScript, et frameworks front-end comme React. Côté serveur, introduction aux API REST et aux bases de données. Prérequis : Programmation orientée objet et Bases de Données."},
+    {"titre": "Langue Française", "module": "Français", "semestre": "S5",
+     "enseignant": "M. Ahmed",
+     "contenu": "Étude des fondements de la langue française et de l'expression écrite et orale. Maîtrise de la grammaire (classes grammaticales, fonctions syntaxiques, accords), de la conjugaison (modes, temps, concordance) et de l'orthographe lexicale et grammaticale. Enrichissement du vocabulaire et étude des registres de langue. Techniques de la communication écrite professionnelle : rédaction de comptes rendus, de rapports, de lettres et de courriels formels. Analyse et synthèse de documents : résumé, dissertation, commentaire de texte. Initiation à l'expression orale : prise de parole en public, argumentation, présentation de projets et techniques de soutenance. Étude de textes littéraires et de leur contexte. Ce cours vise à développer les compétences linguistiques et communicationnelles essentielles à la réussite académique et à l'insertion professionnelle."},
 ]
 
 # ============================================================

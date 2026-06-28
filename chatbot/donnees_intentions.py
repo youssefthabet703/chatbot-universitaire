@@ -29,6 +29,11 @@ donnees = [
     ("Quels sujets sont abordés en systèmes d'exploitation ?", "cours"),
     ("Résume le module de développement web", "cours"),
     ("Quels sont les objectifs du cours de génie logiciel ?", "cours"),
+    ("Quels sont les objectifs du cours de Anglais Technique ?", "cours"),
+    ("Quels sont les objectifs du cours de Français ?", "cours"),
+    ("De quoi parle le module de Français ?", "cours"),
+    ("Qui enseigne le cours de Français ?", "cours"),
+
 
     # --- ORIENTATION ---
     ("Quelles filières choisir si j'aime les mathématiques ?", "orientation"),

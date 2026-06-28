@@ -99,6 +99,27 @@ def construire_historique(historique) -> str:
     return "\n".join(lignes)
 
 
+def ajouter_document_cours(cours_dict: dict, doc_id: str):
+    from langchain_core.documents import Document
+    texte = (
+        f"Cours : {cours_dict['titre']} "
+        f"(module {cours_dict['module']}, {cours_dict.get('semestre', '')}, "
+        f"enseignant {cours_dict['enseignant']}). {cours_dict['contenu']}"
+    )
+    doc = Document(
+        page_content=texte,
+        metadata={"source": "cours", "titre": cours_dict["titre"], "module": cours_dict["module"]},
+    )
+    vectordb.add_documents([doc], ids=[doc_id])
+
+
+def supprimer_document_cours(doc_id: str):
+    try:
+        vectordb.delete(ids=[doc_id])
+    except Exception:
+        pass
+
+
 def repondre(question: str, utilisateur=None, historique=None) -> dict:
     intention, confiance = detecter_intention(question)
 

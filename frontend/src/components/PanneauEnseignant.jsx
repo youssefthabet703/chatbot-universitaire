@@ -10,6 +10,7 @@ export default function PanneauEnseignant({ profil, setProfil, token, setSeances
     matiere: "", salle: "", groupe: "", type_seance: "CM",
     date_seance: "", heure_debut: "", heure_fin: "",
   });
+  const [conflits, setConflits] = useState([]);
 
   const sauvegarderMatieres = async () => {
     const id = toast.loading("Enregistrement...");
@@ -39,14 +40,23 @@ export default function PanneauEnseignant({ profil, setProfil, token, setSeances
       await api.ajouterSeance(token, { ...nouvelleSeance, enseignant: profil.nom });
       toast.success("Séance ajoutée avec succès !", { id });
       setShowForm(false);
+      setConflits([]);
       setNouvelleSeance({ matiere: "", salle: "", groupe: "", type_seance: "CM", date_seance: "", heure_debut: "", heure_fin: "" });
       setSeances(await api.fetchSeances());
     } catch (err) {
-      toast.error(err.message || "Erreur lors de l'ajout", { id });
+      if (err.conflits) {
+        toast.dismiss(id);
+        setConflits(err.conflits);
+      } else {
+        toast.error(err.message || "Erreur lors de l'ajout", { id });
+      }
     }
   };
 
-  const set = (key, val) => setNouvelleSeance((prev) => ({ ...prev, [key]: val }));
+  const set = (key, val) => {
+    setNouvelleSeance((prev) => ({ ...prev, [key]: val }));
+    if (conflits.length) setConflits([]);
+  };
 
   return (
     <div className="panneau-enseignant">
@@ -86,7 +96,7 @@ export default function PanneauEnseignant({ profil, setProfil, token, setSeances
       <div className="panneau-enseignant-header">
         <h2 className="section-titre" style={{ margin: 0 }}>Gestion des séances</h2>
         <button className={`btn-ajouter-seance ${showForm ? "btn-annuler" : ""}`}
-          onClick={() => setShowForm(!showForm)}>
+          onClick={() => { setShowForm(!showForm); setConflits([]); }}>
           {showForm ? "Annuler" : "+ Nouvelle séance"}
         </button>
       </div>
@@ -138,6 +148,14 @@ export default function PanneauEnseignant({ profil, setProfil, token, setSeances
               <input className="champ champ-readonly" type="text" value={profil.nom} readOnly />
             </div>
           </div>
+          {conflits.length > 0 && (
+            <div className="conflits-panel">
+              <p className="conflits-titre">⚠️ Conflits détectés — séance non enregistrée</p>
+              <ul className="conflits-liste">
+                {conflits.map((c, i) => <li key={i}>{c}</li>)}
+              </ul>
+            </div>
+          )}
           <div className="form-seance-footer">
             <button className="btn-principal btn-valider" onClick={ajouterSeance}>
               Ajouter la séance

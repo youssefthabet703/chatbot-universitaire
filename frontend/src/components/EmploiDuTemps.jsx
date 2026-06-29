@@ -8,9 +8,11 @@ export default function EmploiDuTemps({ profil, token, seances, setSeances, expo
   const [semaineOffset, setSemaineOffset] = useState(0);
   const [seanceEnEdition, setSeanceEnEdition] = useState(null);
   const [formEdition, setFormEdition] = useState({});
+  const [conflitsEdition, setConflitsEdition] = useState([]);
 
   const ouvrirEdition = (s) => {
     setSeanceEnEdition(s.id);
+    setConflitsEdition([]);
     setFormEdition({
       matiere: s.matiere, salle: s.salle, groupe: s.groupe,
       type_seance: s.type_seance, date_seance: s.date_seance,
@@ -31,9 +33,15 @@ export default function EmploiDuTemps({ profil, token, seances, setSeances, expo
       await api.modifierSeance(token, seanceEnEdition, formEdition);
       toast.success("Séance modifiée !", { id });
       setSeanceEnEdition(null);
+      setConflitsEdition([]);
       setSeances(await api.fetchSeances());
     } catch (err) {
-      toast.error(err.message || "Erreur lors de la modification", { id });
+      if (err.conflits) {
+        toast.dismiss(id);
+        setConflitsEdition(err.conflits);
+      } else {
+        toast.error(err.message || "Erreur lors de la modification", { id });
+      }
     }
   };
 
@@ -49,7 +57,10 @@ export default function EmploiDuTemps({ profil, token, seances, setSeances, expo
     }
   };
 
-  const setEdition = (key, val) => setFormEdition((prev) => ({ ...prev, [key]: val }));
+  const setEdition = (key, val) => {
+    setFormEdition((prev) => ({ ...prev, [key]: val }));
+    if (conflitsEdition.length) setConflitsEdition([]);
+  };
 
   return (
     <>
@@ -80,7 +91,8 @@ export default function EmploiDuTemps({ profil, token, seances, setSeances, expo
           ouvrirEdition={ouvrirEdition}
           modifierSeance={modifierSeance}
           supprimerSeance={supprimerSeance}
-          annulerEdition={() => setSeanceEnEdition(null)}
+          conflitsEdition={conflitsEdition}
+          annulerEdition={() => { setSeanceEnEdition(null); setConflitsEdition([]); }}
         />
       ) : (
         <VueSemaine
@@ -96,7 +108,7 @@ export default function EmploiDuTemps({ profil, token, seances, setSeances, expo
   );
 }
 
-function VueListe({ profil, seances, seanceEnEdition, formEdition, setEdition, ouvrirEdition, modifierSeance, supprimerSeance, annulerEdition }) {
+function VueListe({ profil, seances, seanceEnEdition, formEdition, setEdition, ouvrirEdition, modifierSeance, supprimerSeance, conflitsEdition, annulerEdition }) {
   return (
     <>
       {seanceEnEdition && (
@@ -128,6 +140,14 @@ function VueListe({ profil, seances, seanceEnEdition, formEdition, setEdition, o
               </select>
             </div>
           </div>
+          {conflitsEdition.length > 0 && (
+            <div className="conflits-panel">
+              <p className="conflits-titre">⚠️ Conflits détectés — modification non enregistrée</p>
+              <ul className="conflits-liste">
+                {conflitsEdition.map((c, i) => <li key={i}>{c}</li>)}
+              </ul>
+            </div>
+          )}
           <div className="form-seance-footer">
             <button className="btn-principal btn-valider" onClick={modifierSeance}>Enregistrer</button>
             <button className="btn-ajouter-seance btn-annuler" onClick={annulerEdition}>Annuler</button>

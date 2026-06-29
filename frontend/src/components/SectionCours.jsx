@@ -1,6 +1,7 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import * as api from "../api";
+import DocumentsCours from "./DocumentsCours";
 
 export default function SectionCours({ profil, token, cours, setCours }) {
   const [showForm, setShowForm] = useState(false);
@@ -122,6 +123,7 @@ export default function SectionCours({ profil, token, cours, setCours }) {
               <p className="contenu-cours">
                 {c.contenu.length > 120 ? c.contenu.slice(0, 120) + "..." : c.contenu}
               </p>
+              <DocumentsCours coursId={c._id} profil={profil} token={token} />
             </div>
           ))}
         </div>

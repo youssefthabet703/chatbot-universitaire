@@ -207,9 +207,14 @@ INDICES_REFUS = [
     "impossible de", "pas disponible", "introuvable",
 ]
 
+MSG_ERREUR_API = "momentanément indisponible"
+
 def est_refus(reponse: str) -> bool:
     r = reponse.lower()
     return any(ind in r for ind in INDICES_REFUS)
+
+def est_erreur_api(reponse: str) -> bool:
+    return MSG_ERREUR_API in reponse.lower()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -241,12 +246,15 @@ def evaluer(rapide: bool = False):
 
     # Métriques CDC
     pieges_bien_refuses  = 0
+    pieges_erreurs_api   = 0
     relevance_scores     = []
 
     print("=" * 70)
     print(f"  ÉVALUATION DU CHATBOT  ({'mode rapide' if rapide else 'mode complet'})")
     print(f"  {len(valides)} questions valides · {len(pieges)} questions pièges")
     print("=" * 70)
+
+    DELAI_ENTRE_APPELS = 0.4  # secondes — évite le rate-limiting Mistral
 
     # ── Questions valides ──────────────────────────────────────────────────
     print("\n▶ Questions valides")
@@ -255,6 +263,7 @@ def evaluer(rapide: bool = False):
         resultat = rag.repondre(question)
         duree = time.time() - t0
         latences.append(duree)
+        time.sleep(DELAI_ENTRE_APPELS)
 
         reponse   = resultat["reponse"]
         intention = resultat["intention"]
@@ -291,8 +300,10 @@ def evaluer(rapide: bool = False):
             intentions_ok += 1
         total_intentions += 1
 
-        refuse_ok = est_refus(reponse)
-        if refuse_ok:
+        if est_erreur_api(reponse):
+            pieges_erreurs_api += 1
+            tag = "⚠ ERREUR API"
+        elif est_refus(reponse):
             pieges_bien_refuses += 1
             tag = "✓ REFUS"
         else:
@@ -300,15 +311,18 @@ def evaluer(rapide: bool = False):
 
         print(f"  [{i+1:03d}] {tag} [{duree:.1f}s]")
         print(f"     Q: {question}")
-        if not refuse_ok:
+        if tag == "✗ HALLUCINATION":
             print(f"     R: {reponse[:100]}...")
+        time.sleep(DELAI_ENTRE_APPELS)
 
     # ── Calcul des métriques ───────────────────────────────────────────────
+    pieges_evalues       = len(pieges) - pieges_erreurs_api
     precision_intentions = intentions_ok / total_intentions if total_intentions else 0
-    faithfulness         = pieges_bien_refuses / len(pieges) if pieges else 0
+    faithfulness         = pieges_bien_refuses / pieges_evalues if pieges_evalues else 0
     relevancy            = (sum(relevance_scores) / len(relevance_scores)) if relevance_scores else 0
-    latence_moy          = statistics.mean(latences) if latences else 0
-    latence_p95          = sorted(latences)[int(len(latences) * 0.95)] if latences else 0
+    latences_sans_erreur = [l for l in latences if l > 0.1]  # exclut les réponses instantanées (erreurs)
+    latence_moy          = statistics.mean(latences_sans_erreur) if latences_sans_erreur else 0
+    latence_p95          = sorted(latences_sans_erreur)[int(len(latences_sans_erreur) * 0.95)] if latences_sans_erreur else 0
 
     # ── Rapport final ──────────────────────────────────────────────────────
     print("\n" + "=" * 70)
@@ -316,7 +330,9 @@ def evaluer(rapide: bool = False):
     print("=" * 70)
     print(f"  Précision classification  : {precision_intentions:.1%}   ({intentions_ok}/{total_intentions})")
     print()
-    print(f"  Faithfulness (anti-halluc): {faithfulness:.1%}   ({pieges_bien_refuses}/{len(pieges)} refus corrects)")
+    print(f"  Faithfulness (anti-halluc): {faithfulness:.1%}   ({pieges_bien_refuses}/{pieges_evalues} refus corrects)")
+    if pieges_erreurs_api:
+        print(f"  (Erreurs API exclues      : {pieges_erreurs_api} appels échoués)")
     print(f"  Cible CDC                 : ≥ 85 %   {'✓ OK' if faithfulness >= 0.85 else '✗ NON ATTEINT'}")
     print()
     print(f"  Relevancy (similarité)    : {relevancy:.1%}   (sur {len(relevance_scores)} réponses valides)")
@@ -328,14 +344,16 @@ def evaluer(rapide: bool = False):
     print("=" * 70)
 
     resultats = {
-        "precision_intentions": round(precision_intentions, 4),
-        "faithfulness":         round(faithfulness, 4),
-        "relevancy":            round(relevancy, 4),
-        "latence_moyenne_s":    round(latence_moy, 3),
-        "latence_p95_s":        round(latence_p95, 3),
-        "total_questions":      total_intentions,
-        "pieges_total":         len(pieges),
-        "pieges_bien_refuses":  pieges_bien_refuses,
+        "precision_intentions":  round(precision_intentions, 4),
+        "faithfulness":          round(faithfulness, 4),
+        "relevancy":             round(relevancy, 4),
+        "latence_moyenne_s":     round(latence_moy, 3),
+        "latence_p95_s":         round(latence_p95, 3),
+        "total_questions":       total_intentions,
+        "pieges_total":          len(pieges),
+        "pieges_bien_refuses":   pieges_bien_refuses,
+        "pieges_erreurs_api":    pieges_erreurs_api,
+        "pieges_evalues":        pieges_evalues,
     }
 
     rapport_path = os.path.join(os.path.dirname(__file__), "rapport_evaluation.json")

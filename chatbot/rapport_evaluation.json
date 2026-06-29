@@ -1,0 +1,12 @@
+{
+  "precision_intentions": 0.5164,
+  "faithfulness": 0.9615,
+  "relevancy": 0.6085,
+  "latence_moyenne_s": 0.572,
+  "latence_p95_s": 1.252,
+  "total_questions": 122,
+  "pieges_total": 100,
+  "pieges_bien_refuses": 75,
+  "pieges_erreurs_api": 22,
+  "pieges_evalues": 78
+}

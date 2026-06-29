@@ -48,16 +48,23 @@ export const fetchSeances = (groupe) => {
   return fetch(url).then((r) => r.json());
 };
 
+const lancerErreurSeance = async (rep) => {
+  const err = await rep.json();
+  if (rep.status === 409 && err.detail?.conflits) {
+    const e = new Error("CONFLIT_SEANCE");
+    e.conflits = err.detail.conflits;
+    throw e;
+  }
+  throw new Error(err.detail || "Erreur");
+};
+
 export const ajouterSeance = async (token, data) => {
   const rep = await fetch(`${API_URL}/seances`, {
     method: "POST",
     headers: authHeaders(token),
     body: JSON.stringify(data),
   });
-  if (!rep.ok) {
-    const err = await rep.json();
-    throw new Error(err.detail || "Erreur lors de l'ajout");
-  }
+  if (!rep.ok) await lancerErreurSeance(rep);
   return rep.json();
 };
 
@@ -67,10 +74,7 @@ export const modifierSeance = async (token, id, data) => {
     headers: authHeaders(token),
     body: JSON.stringify(data),
   });
-  if (!rep.ok) {
-    const err = await rep.json();
-    throw new Error(err.detail || "Erreur lors de la modification");
-  }
+  if (!rep.ok) await lancerErreurSeance(rep);
   return rep.json();
 };
 
@@ -108,6 +112,35 @@ export const supprimerCours = async (token, id) => {
 
 export const fetchEtudiants = (token) =>
   fetch(`${API_URL}/etudiants`, { headers: authHeaders(token) }).then((r) => r.json());
+
+export const fetchDocumentsCours = (coursId) =>
+  fetch(`${API_URL}/cours/${coursId}/documents`).then((r) => r.json());
+
+export const ajouterDocument = async (token, coursId, { nom, typeDoc, url, fichier }) => {
+  const form = new FormData();
+  form.append("nom", nom);
+  form.append("type_doc", typeDoc);
+  if (typeDoc === "lien") form.append("url", url);
+  if (typeDoc === "pdf" && fichier) form.append("fichier", fichier);
+  const rep = await fetch(`${API_URL}/cours/${coursId}/documents`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!rep.ok) {
+    const err = await rep.json();
+    throw new Error(err.detail || "Erreur lors de l'ajout");
+  }
+  return rep.json();
+};
+
+export const supprimerDocument = async (token, docId) => {
+  const rep = await fetch(`${API_URL}/documents/${docId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!rep.ok) throw new Error("Erreur lors de la suppression");
+};
 
 export const envoyerChat = async (token, question, historique = []) => {
   const rep = await fetch(`${API_URL}/chat`, {

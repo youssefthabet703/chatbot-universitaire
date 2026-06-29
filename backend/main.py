@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from database import engine, get_db
 import models
@@ -8,9 +9,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import schemas
 from typing import Optional
-from datetime import date
+from datetime import date, datetime
 import auth
 from bson import ObjectId
+import os
+import shutil
+import uuid
+
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 models.Base.metadata.create_all(bind=engine)
@@ -118,12 +125,47 @@ def lister_etudiants(
     return db.query(models.Utilisateur).filter(models.Utilisateur.role == "etudiant").all()
 
 
+def detecter_conflits(db, data: dict, exclude_id: int = None) -> list:
+    """Détecte les chevauchements de salle, enseignant et groupe sur un même créneau."""
+    # Toutes les séances qui se chevauchent en temps ce jour-là
+    requete = db.query(models.Seance).filter(
+        models.Seance.date_seance == data["date_seance"],
+        models.Seance.heure_debut < data["heure_fin"],
+        models.Seance.heure_fin  > data["heure_debut"],
+    )
+    if exclude_id:
+        requete = requete.filter(models.Seance.id != exclude_id)
+
+    conflits = []
+    for s in requete.all():
+        h = f"{str(s.heure_debut)[:5]}–{str(s.heure_fin)[:5]}"
+        if s.salle == data["salle"]:
+            conflits.append(
+                f"Salle «{s.salle}» déjà occupée par «{s.matiere}» "
+                f"(groupe {s.groupe}) de {h}"
+            )
+        if s.enseignant == data["enseignant"]:
+            conflits.append(
+                f"Enseignant «{s.enseignant}» déjà affecté à «{s.matiere}» "
+                f"(salle {s.salle}) de {h}"
+            )
+        if s.groupe == data["groupe"]:
+            conflits.append(
+                f"Groupe «{s.groupe}» a déjà «{s.matiere}» "
+                f"(salle {s.salle}) de {h}"
+            )
+    return list(dict.fromkeys(conflits))  # dédoublonnage
+
+
 @app.post("/seances", response_model=schemas.SeanceLire)
 def creer_seance(
     seance: schemas.SeanceCreer,
     db: Session = Depends(get_db),
     _: models.Utilisateur = Depends(verifier_enseignant),
 ):
+    conflits = detecter_conflits(db, seance.dict())
+    if conflits:
+        raise HTTPException(status_code=409, detail={"conflits": conflits})
     nouvelle_seance = models.Seance(**seance.dict())
     db.add(nouvelle_seance)
     db.commit()
@@ -141,6 +183,9 @@ def modifier_seance(
     seance = db.query(models.Seance).filter(models.Seance.id == seance_id).first()
     if not seance:
         raise HTTPException(status_code=404, detail="Séance introuvable")
+    conflits = detecter_conflits(db, donnees.dict(), exclude_id=seance_id)
+    if conflits:
+        raise HTTPException(status_code=409, detail={"conflits": conflits})
     for champ, valeur in donnees.dict().items():
         setattr(seance, champ, valeur)
     db.commit()
@@ -228,6 +273,83 @@ def lister_faq():
         doc["_id"] = str(doc["_id"])
         faqs.append(doc)
     return faqs
+
+
+@app.post("/cours/{cours_id}/documents")
+async def ajouter_document(
+    cours_id: str,
+    nom: str = Form(...),
+    type_doc: str = Form(...),
+    url: str = Form(None),
+    fichier: UploadFile = File(None),
+    enseignant: models.Utilisateur = Depends(verifier_enseignant),
+):
+    if type_doc == "pdf":
+        if not fichier:
+            raise HTTPException(status_code=400, detail="Fichier PDF requis")
+        ext = os.path.splitext(fichier.filename)[1].lower()
+        if ext != ".pdf":
+            raise HTTPException(status_code=400, detail="Seuls les fichiers PDF sont acceptés")
+        nom_fichier = f"{uuid.uuid4()}{ext}"
+        chemin = os.path.join(UPLOAD_DIR, nom_fichier)
+        with open(chemin, "wb") as f:
+            shutil.copyfileobj(fichier.file, f)
+        doc = {
+            "cours_id": cours_id, "nom": nom, "type": "pdf",
+            "chemin": nom_fichier, "url": None,
+            "date_ajout": datetime.utcnow().isoformat(),
+            "enseignant": enseignant.nom,
+        }
+    elif type_doc == "lien":
+        if not url:
+            raise HTTPException(status_code=400, detail="URL requise")
+        doc = {
+            "cours_id": cours_id, "nom": nom, "type": "lien",
+            "chemin": None, "url": url,
+            "date_ajout": datetime.utcnow().isoformat(),
+            "enseignant": enseignant.nom,
+        }
+    else:
+        raise HTTPException(status_code=400, detail="Type invalide : 'pdf' ou 'lien'")
+
+    resultat = mongo.collection_documents.insert_one(doc)
+    return {"id": str(resultat.inserted_id), "message": "Document ajouté"}
+
+
+@app.get("/cours/{cours_id}/documents")
+def lister_documents(cours_id: str):
+    docs = []
+    for doc in mongo.collection_documents.find({"cours_id": cours_id}):
+        doc["_id"] = str(doc["_id"])
+        docs.append(doc)
+    return docs
+
+
+@app.delete("/documents/{doc_id}")
+def supprimer_document(
+    doc_id: str,
+    _: models.Utilisateur = Depends(verifier_enseignant),
+):
+    doc = mongo.collection_documents.find_one({"_id": ObjectId(doc_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document introuvable")
+    if doc.get("chemin"):
+        chemin = os.path.join(UPLOAD_DIR, doc["chemin"])
+        if os.path.exists(chemin):
+            os.remove(chemin)
+    mongo.collection_documents.delete_one({"_id": ObjectId(doc_id)})
+    return {"message": "Document supprimé"}
+
+
+@app.get("/documents/{doc_id}/telecharger")
+def telecharger_document(doc_id: str):
+    doc = mongo.collection_documents.find_one({"_id": ObjectId(doc_id)})
+    if not doc or doc.get("type") != "pdf":
+        raise HTTPException(status_code=404, detail="Document introuvable")
+    chemin = os.path.join(UPLOAD_DIR, doc["chemin"])
+    if not os.path.exists(chemin):
+        raise HTTPException(status_code=404, detail="Fichier introuvable sur le serveur")
+    return FileResponse(chemin, filename=doc["nom"] + ".pdf", media_type="application/pdf")
 
 
 @app.post("/chat")

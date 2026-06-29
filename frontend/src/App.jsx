@@ -180,8 +180,19 @@ function App() {
             </p>
           </div>
           {profil.role === "etudiant" && (() => {
-            const aujourd = new Date().toISOString().slice(0, 10);
-            const prochaine = seances.find((s) => s.date_seance >= aujourd);
+            const maintenant = new Date();
+            const aujourd = maintenant.toISOString().slice(0, 10);
+            const heureNow = maintenant.toTimeString().slice(0, 5);
+            const prochaine = [...seances]
+              .sort((a, b) =>
+                a.date_seance !== b.date_seance
+                  ? a.date_seance.localeCompare(b.date_seance)
+                  : a.heure_debut.localeCompare(b.heure_debut)
+              )
+              .find((s) =>
+                s.date_seance > aujourd ||
+                (s.date_seance === aujourd && s.heure_fin.slice(0, 5) > heureNow)
+              );
             return prochaine ? (
               <div className="bienvenue-prochaine">
                 <span className="prochaine-label">Prochaine séance</span>

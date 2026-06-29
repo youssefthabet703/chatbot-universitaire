@@ -23,7 +23,7 @@ seances = [
      "groupe": "L3-INFO-G1", "type_seance": "CM", "date_seance": date(2026, 6, 19),
      "heure_debut": time(13, 0), "heure_fin": time(14, 30)},
 
-    # ── L3-INFO-G2 ──────────────────────────────────────────────────────────
+    # ── L3-INFO-G2 (passées) ───────────────────────────────────────────────
     {"matiere": "Réseaux", "enseignant": "M. Ben Salah", "salle": "C303",
      "groupe": "L3-INFO-G2", "type_seance": "CM", "date_seance": date(2026, 6, 15),
      "heure_debut": time(10, 15), "heure_fin": time(11, 45)},
@@ -39,6 +39,31 @@ seances = [
     {"matiere": "Systèmes d'Exploitation", "enseignant": "Mme Gharbi", "salle": "B205",
      "groupe": "L3-INFO-G2", "type_seance": "TD", "date_seance": date(2026, 6, 19),
      "heure_debut": time(8, 30), "heure_fin": time(10, 0)},
+    {"matiere": "Anglais Technique", "enseignant": "Haifa", "salle": "C205",
+     "groupe": "L3-INFO-G2", "type_seance": "CM", "date_seance": date(2026, 6, 29),
+     "heure_debut": time(17, 0), "heure_fin": time(17, 30)},
+
+    # ── L3-INFO-G1 (à venir) ───────────────────────────────────────────────
+    {"matiere": "Français", "enseignant": "M. Ahmed", "salle": "D101",
+     "groupe": "L3-INFO-G1", "type_seance": "CM", "date_seance": date(2026, 6, 30),
+     "heure_debut": time(9, 0), "heure_fin": time(10, 30)},
+    {"matiere": "Réseaux", "enseignant": "M. Ben Salah", "salle": "Labo2",
+     "groupe": "L3-INFO-G1", "type_seance": "TP", "date_seance": date(2026, 7, 1),
+     "heure_debut": time(13, 0), "heure_fin": time(16, 0)},
+    {"matiere": "Algorithmique", "enseignant": "M. Karray", "salle": "A101",
+     "groupe": "L3-INFO-G1", "type_seance": "CM", "date_seance": date(2026, 7, 2),
+     "heure_debut": time(8, 30), "heure_fin": time(10, 0)},
+
+    # ── L3-INFO-G2 (à venir) ───────────────────────────────────────────────
+    {"matiere": "Base de Données", "enseignant": "Mme Trabelsi", "salle": "B206",
+     "groupe": "L3-INFO-G2", "type_seance": "CM", "date_seance": date(2026, 6, 30),
+     "heure_debut": time(13, 0), "heure_fin": time(14, 30)},
+    {"matiere": "Génie Logiciel", "enseignant": "M. Hamdi", "salle": "A102",
+     "groupe": "L3-INFO-G2", "type_seance": "TD", "date_seance": date(2026, 7, 1),
+     "heure_debut": time(10, 15), "heure_fin": time(11, 45)},
+    {"matiere": "Français", "enseignant": "M. Ahmed", "salle": "D102",
+     "groupe": "L3-INFO-G2", "type_seance": "CM", "date_seance": date(2026, 7, 2),
+     "heure_debut": time(13, 0), "heure_fin": time(14, 30)},
 ]
 
 # ============================================================

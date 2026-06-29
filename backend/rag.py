@@ -55,20 +55,34 @@ def detecter_intention(question: str) -> tuple:
     return intention, confiance
 
 def chercher_emploi_du_temps(groupe: str = None):
+    from datetime import date as date_today, datetime
+    aujourd_hui = date_today.today()
+
     db = SessionLocal()
     requete = db.query(models.Seance)
     if groupe:
         requete = requete.filter(models.Seance.groupe == groupe)
-    seances = requete.all()
+    seances = sorted(requete.all(), key=lambda s: (s.date_seance, s.heure_debut))
     db.close()
+
     if not seances:
         return ""
-    lignes = []
+
+    maintenant = datetime.now().time()
+    lignes = [f"[Aujourd'hui : {aujourd_hui.strftime('%A %d %B %Y')}]"]
     for s in seances:
+        if s.date_seance < aujourd_hui:
+            statut = "(passée)"
+        elif s.date_seance == aujourd_hui and s.heure_fin < maintenant:
+            statut = "(terminée aujourd'hui)"
+        elif s.date_seance == aujourd_hui:
+            statut = "(aujourd'hui)"
+        else:
+            statut = "(à venir)"
         lignes.append(
             f"{s.matiere} ({s.type_seance}) avec {s.enseignant}, "
             f"salle {s.salle}, groupe {s.groupe}, "
-            f"le {s.date_seance} de {s.heure_debut} à {s.heure_fin}."
+            f"le {s.date_seance} de {s.heure_debut} à {s.heure_fin} {statut}."
         )
     return "\n".join(lignes)
 

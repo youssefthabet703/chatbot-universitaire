@@ -69,14 +69,31 @@ def chercher_emploi_du_temps(groupe: str = None):
         return ""
 
     maintenant = datetime.now().time()
-    lignes = [f"[Aujourd'hui : {aujourd_hui.strftime('%A %d %B %Y')}]"]
+    lignes = [f"[Aujourd'hui : {aujourd_hui.strftime('%A %d %B %Y')}, heure actuelle : {maintenant.strftime('%H:%M')}]"]
+
+    # Identifier explicitement la prochaine séance
+    prochaine = next(
+        (s for s in seances
+         if s.date_seance > aujourd_hui
+         or (s.date_seance == aujourd_hui and s.heure_debut > maintenant)),
+        None
+    )
+    if prochaine:
+        lignes.append(
+            f"[PROCHAINE SÉANCE : {prochaine.matiere} ({prochaine.type_seance}) "
+            f"avec {prochaine.enseignant}, salle {prochaine.salle}, "
+            f"le {prochaine.date_seance} de {prochaine.heure_debut} à {prochaine.heure_fin}]"
+        )
+
     for s in seances:
         if s.date_seance < aujourd_hui:
             statut = "(passée)"
-        elif s.date_seance == aujourd_hui and s.heure_fin < maintenant:
+        elif s.date_seance == aujourd_hui and s.heure_fin <= maintenant:
             statut = "(terminée aujourd'hui)"
+        elif s.date_seance == aujourd_hui and s.heure_debut <= maintenant:
+            statut = "(en cours)"
         elif s.date_seance == aujourd_hui:
-            statut = "(aujourd'hui)"
+            statut = "(aujourd'hui, pas encore commencée)"
         else:
             statut = "(à venir)"
         lignes.append(

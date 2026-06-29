@@ -1,4 +1,5 @@
 import os
+import sys
 import pickle
 from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -7,6 +8,11 @@ from langchain_mistralai import ChatMistralAI
 from database import SessionLocal
 import models
 import mongo
+
+# Rendre le dossier "chatbot" importable pour retrouver la classe ClassifieurBERT
+# (nécessaire pour que pickle puisse recharger le modèle d'intentions)
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "chatbot"))
+from classifieur import ClassifieurBERT
 
 load_dotenv()
 

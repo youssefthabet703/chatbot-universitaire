@@ -137,6 +137,14 @@ def repondre(question: str, utilisateur=None, historique=None) -> dict:
                 question_recherche = f"{msg.texte} {question}"
                 break
 
+    # Détection des questions de suivi : courtes ET confiance basse ET conversation en cours
+    SEUIL_CONFIANCE = 70.0
+    est_suivi = (
+        historique
+        and len(question.split()) <= 6
+        and (confiance is None or confiance < SEUIL_CONFIANCE)
+    )
+
     if intention == "emploi_du_temps":
         groupe = utilisateur.groupe if utilisateur else None
         contexte = chercher_emploi_du_temps(groupe=groupe)
@@ -158,6 +166,13 @@ def repondre(question: str, utilisateur=None, historique=None) -> dict:
             faq_contexte = chercher_faq_mongo(intention, question)
             if faq_contexte:
                 contexte = faq_contexte if not contexte else contexte + "\n\n" + faq_contexte
+
+        # Question de suivi ambiguë : ajouter l'emploi du temps en contexte supplémentaire
+        if est_suivi:
+            groupe = utilisateur.groupe if utilisateur else None
+            edt = chercher_emploi_du_temps(groupe=groupe)
+            if edt:
+                contexte = edt + ("\n\n" + contexte if contexte else "")
 
     prompt = PROMPT_SYSTEME.format(
         historique=construire_historique(historique),

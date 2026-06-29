@@ -22,6 +22,23 @@ seances = [
     {"matiere": "Génie Logiciel", "enseignant": "M. Hamdi", "salle": "A105",
      "groupe": "L3-INFO-G1", "type_seance": "CM", "date_seance": date(2026, 6, 19),
      "heure_debut": time(13, 0), "heure_fin": time(14, 30)},
+
+    # ── L3-INFO-G2 ──────────────────────────────────────────────────────────
+    {"matiere": "Réseaux", "enseignant": "M. Ben Salah", "salle": "C303",
+     "groupe": "L3-INFO-G2", "type_seance": "CM", "date_seance": date(2026, 6, 15),
+     "heure_debut": time(10, 15), "heure_fin": time(11, 45)},
+    {"matiere": "Base de Données", "enseignant": "Mme Trabelsi", "salle": "B205",
+     "groupe": "L3-INFO-G2", "type_seance": "TD", "date_seance": date(2026, 6, 16),
+     "heure_debut": time(8, 30), "heure_fin": time(10, 0)},
+    {"matiere": "Algorithmique", "enseignant": "M. Karray", "salle": "Labo1",
+     "groupe": "L3-INFO-G2", "type_seance": "TP", "date_seance": date(2026, 6, 17),
+     "heure_debut": time(14, 0), "heure_fin": time(15, 30)},
+    {"matiere": "Génie Logiciel", "enseignant": "M. Hamdi", "salle": "A106",
+     "groupe": "L3-INFO-G2", "type_seance": "CM", "date_seance": date(2026, 6, 18),
+     "heure_debut": time(10, 15), "heure_fin": time(11, 45)},
+    {"matiere": "Systèmes d'Exploitation", "enseignant": "Mme Gharbi", "salle": "B205",
+     "groupe": "L3-INFO-G2", "type_seance": "TD", "date_seance": date(2026, 6, 19),
+     "heure_debut": time(8, 30), "heure_fin": time(10, 0)},
 ]
 
 # ============================================================

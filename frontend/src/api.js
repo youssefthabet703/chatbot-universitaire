@@ -150,4 +150,31 @@ export const envoyerChat = async (token, question, historique = []) => {
   });
   if (!rep.ok) throw new Error("Erreur de connexion au chatbot");
   return rep.json();
-}
+};
+
+export const fetchTousUtilisateurs = (token) =>
+  fetch(`${API_URL}/admin/utilisateurs`, { headers: authHeaders(token) }).then((r) => r.json());
+
+export const changerRole = async (token, id, role) => {
+  const rep = await fetch(`${API_URL}/admin/utilisateurs/${id}/role`, {
+    method: "PATCH",
+    headers: authHeaders(token),
+    body: JSON.stringify({ role }),
+  });
+  if (!rep.ok) {
+    const err = await rep.json();
+    throw new Error(err.detail || "Erreur lors du changement de rôle");
+  }
+  return rep.json();
+};
+
+export const supprimerUtilisateurAdmin = async (token, id) => {
+  const rep = await fetch(`${API_URL}/admin/utilisateurs/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!rep.ok) {
+    const err = await rep.json();
+    throw new Error(err.detail || "Erreur lors de la suppression");
+  }
+};

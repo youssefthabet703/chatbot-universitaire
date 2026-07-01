@@ -68,3 +68,6 @@ class MessageHistorique(BaseModel):
 class QuestionChat(BaseModel):
     question: str
     historique: list[MessageHistorique] = []
+
+class RoleMiseAJour(BaseModel):
+    role: str  # "etudiant" ou "enseignant"

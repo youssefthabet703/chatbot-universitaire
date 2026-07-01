@@ -48,8 +48,14 @@ def utilisateur_courant(token: str = Depends(oauth2_scheme), db: Session = Depen
 
 
 def verifier_enseignant(utilisateur: models.Utilisateur = Depends(utilisateur_courant)):
-    if utilisateur.role != "enseignant":
+    if utilisateur.role not in ("enseignant", "admin"):
         raise HTTPException(status_code=403, detail="Accès réservé aux enseignants")
+    return utilisateur
+
+
+def verifier_admin(utilisateur: models.Utilisateur = Depends(utilisateur_courant)):
+    if utilisateur.role != "admin":
+        raise HTTPException(status_code=403, detail="Accès réservé aux administrateurs")
     return utilisateur
 
 
@@ -99,7 +105,7 @@ def creer_utilisateur(utilisateur: schemas.UtilisateurCreer, db: Session = Depen
         nom=utilisateur.nom,
         email=utilisateur.email,
         mot_de_passe=auth.chiffrer_mot_de_passe(utilisateur.mot_de_passe),
-        role=utilisateur.role,
+        role="etudiant",
         groupe=utilisateur.groupe,
     )
     db.add(nouvel_utilisateur)
@@ -123,6 +129,50 @@ def lister_etudiants(
     db: Session = Depends(get_db),
 ):
     return db.query(models.Utilisateur).filter(models.Utilisateur.role == "etudiant").all()
+
+
+@app.get("/admin/utilisateurs", response_model=list[schemas.UtilisateurLire])
+def lister_tous_utilisateurs(
+    _: models.Utilisateur = Depends(verifier_admin),
+    db: Session = Depends(get_db),
+):
+    return db.query(models.Utilisateur).all()
+
+
+@app.patch("/admin/utilisateurs/{utilisateur_id}/role", response_model=schemas.UtilisateurLire)
+def changer_role_utilisateur(
+    utilisateur_id: int,
+    donnees: schemas.RoleMiseAJour,
+    _: models.Utilisateur = Depends(verifier_admin),
+    db: Session = Depends(get_db),
+):
+    if donnees.role not in ("etudiant", "enseignant"):
+        raise HTTPException(status_code=400, detail="Rôle invalide : 'etudiant' ou 'enseignant'")
+    utilisateur = db.query(models.Utilisateur).filter(models.Utilisateur.id == utilisateur_id).first()
+    if not utilisateur:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+    if utilisateur.role == "admin":
+        raise HTTPException(status_code=403, detail="Impossible de modifier le rôle d'un administrateur")
+    utilisateur.role = donnees.role
+    db.commit()
+    db.refresh(utilisateur)
+    return utilisateur
+
+
+@app.delete("/admin/utilisateurs/{utilisateur_id}")
+def supprimer_utilisateur(
+    utilisateur_id: int,
+    _: models.Utilisateur = Depends(verifier_admin),
+    db: Session = Depends(get_db),
+):
+    utilisateur = db.query(models.Utilisateur).filter(models.Utilisateur.id == utilisateur_id).first()
+    if not utilisateur:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+    if utilisateur.role == "admin":
+        raise HTTPException(status_code=403, detail="Impossible de supprimer un administrateur")
+    db.delete(utilisateur)
+    db.commit()
+    return {"message": "Utilisateur supprimé"}
 
 
 def detecter_conflits(db, data: dict, exclude_id: int = None) -> list:

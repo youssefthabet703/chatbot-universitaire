@@ -1,7 +1,10 @@
-import { GraduationCap, CalendarDays, BookOpen, Users, Bot, Moon, Sun, LogOut, Calendar } from "lucide-react";
+import { GraduationCap, CalendarDays, BookOpen, Users, Bot, Moon, Sun, LogOut, Calendar, ShieldCheck } from "lucide-react";
 
 export default function NavBar({ profil, sectionActive, modeSombre, setModeSombre, dateAujourdhui, seDeconnecter, getInitiales }) {
   const liens = [
+    ...(profil.role === "admin"
+      ? [{ id: "admin", label: "Utilisateurs", icon: <ShieldCheck size={15} strokeWidth={2} /> }]
+      : []),
     { id: "emploi",    label: "Emploi du temps", icon: <CalendarDays size={15} strokeWidth={2} /> },
     { id: "cours",     label: "Cours",            icon: <BookOpen size={15} strokeWidth={2} /> },
     ...(profil.role === "enseignant"

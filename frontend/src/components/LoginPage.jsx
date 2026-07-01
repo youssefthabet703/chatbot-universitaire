@@ -22,7 +22,8 @@ export default function LoginPage({ modeSombre, setModeSombre, onSuccess, setCha
         api.fetchCours(),
       ]);
       const etudiants = profil.role === "enseignant" ? await api.fetchEtudiants(tokenRecu) : [];
-      onSuccess({ token: tokenRecu, profil, seances, cours, etudiants });
+      const utilisateurs = profil.role === "admin" ? await api.fetchTousUtilisateurs(tokenRecu) : [];
+      onSuccess({ token: tokenRecu, profil, seances, cours, etudiants, utilisateurs });
     } catch (err) {
       toast.error(err.message || "Erreur de connexion");
     } finally {

@@ -12,6 +12,7 @@ import SectionCours from "./components/SectionCours";
 import SectionEtudiants from "./components/SectionEtudiants";
 import ChatSection from "./components/ChatSection";
 import ChatFlottant from "./components/ChatFlottant";
+import PanneauAdmin from "./components/PanneauAdmin";
 
 const TOASTER_OPTS = {
   style: { borderRadius: "10px", fontSize: "14px", fontFamily: "inherit" },
@@ -26,6 +27,7 @@ function App() {
   const [seances, setSeances] = useState([]);
   const [cours, setCours] = useState([]);
   const [etudiants, setEtudiants] = useState([]);
+  const [utilisateurs, setUtilisateurs] = useState([]);
   const [chargement, setChargement] = useState(false);
   const [sectionActive, setSectionActive] = useState("emploi");
   const [modeSombre, setModeSombre] = useState(() => localStorage.getItem("theme") === "sombre");
@@ -71,12 +73,13 @@ function App() {
     return () => observer.disconnect();
   }, [profil]);
 
-  const handleLoginSuccess = ({ token: t, profil: p, seances: s, cours: c, etudiants: e }) => {
+  const handleLoginSuccess = ({ token: t, profil: p, seances: s, cours: c, etudiants: e, utilisateurs: u }) => {
     setToken(t);
     setProfil(p);
     setSeances(s);
     setCours(c);
     setEtudiants(e);
+    setUtilisateurs(u || []);
   };
 
   const seDeconnecter = () => {
@@ -85,6 +88,7 @@ function App() {
     setSeances([]);
     setCours([]);
     setEtudiants([]);
+    setUtilisateurs([]);
   };
 
   const getInitiales = (nom) => {
@@ -177,6 +181,7 @@ function App() {
               {" · "}<span className="bienvenue-heure">🕐 {heureActuelle}</span>
               {profil.role === "etudiant" && profil.groupe ? ` · Groupe ${profil.groupe}` : ""}
               {profil.role === "enseignant" ? " · Espace enseignant" : ""}
+              {profil.role === "admin" ? " · Espace administrateur" : ""}
             </p>
           </div>
           {profil.role === "etudiant" && (() => {
@@ -230,6 +235,14 @@ function App() {
             <span className="stat-label">Enseignants</span>
           </div>
         </div>
+
+        {profil.role === "admin" && (
+          <PanneauAdmin
+            token={token}
+            utilisateurs={utilisateurs}
+            setUtilisateurs={setUtilisateurs}
+          />
+        )}
 
         {profil.role === "enseignant" && (
           <PanneauEnseignant
